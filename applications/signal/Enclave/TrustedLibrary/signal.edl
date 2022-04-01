@@ -1,0 +1,14 @@
+enclave {
+  trusted {
+    public void ecall_signal_sanity(void);
+  };
+
+  untrusted {
+    void ocall_FAIL();
+    void ocall_print_string([in, string] const char *str);
+    void ocall_InitServer(uint64_t sizeOfT, uint64_t N_);
+    void ocall_SwapPage(uint64_t sizeOfT, uint64_t index_in, uint64_t index_out, [in, size=4096] uint8_t* page_in,  [out, size=4096] uint8_t* page_out);
+    void ocall_ReadPage(uint64_t sizeOfT, uint64_t index, [out, size=4096] uint8_t* page);
+    void ocall_WritePage(uint64_t sizeOfT, uint64_t index, [in, size=4096] uint8_t* page);
+  };
+};

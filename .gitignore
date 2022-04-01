@@ -1,0 +1,46 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.gch
+*.pch
+*.so
+*.dylib
+*.dll
+*.lai
+*.la
+*.a
+*.lib
+*.exe
+*.out
+*.app
+*.bin
+*.elf
+
+# CmakeFolders
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+build/
+codebuild/
+
+# tex stuff:
+*.log
+*.synctex.gz
+*.dvi
+*.aux
+*.blg
+*.bbl
+*/.ipynb_checkpoints/
+
+# SGX enclave stuff
+Enclave_t.h
+Enclave_t.c
+Enclave_u.h
+Enclave_u.c
+.config_SIM_DEBUG_x64
+.config_SIM_RELEASE_x64

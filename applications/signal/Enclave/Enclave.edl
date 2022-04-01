@@ -1,0 +1,4 @@
+enclave {
+  from "TrustedLibrary/signal.edl" import *;
+  from "sgx_tstdc.edl" import *;
+};

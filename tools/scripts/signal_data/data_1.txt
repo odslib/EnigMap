@@ -1,0 +1,333 @@
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running build/target/benchmark/release/deps/hash_lookup-5f52c098d80ffb9f
+Gnuplot not found, using plotters backend
+hash_lookup_one_query_phone_varying_phone_db/1                                                                             
+                        time:   [2.9959 us 3.0286 us 3.0741 us]
+                        thrpt:  [325.29 Kelem/s 330.18 Kelem/s 333.79 Kelem/s]
+                 change:
+                        time:   [-100.000% -100.000% -100.000%] (p = 0.00 < 0.05)
+                        thrpt:  [+30385434% +30666746% +30939194%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  5 (5.00%) high mild
+  6 (6.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/2                                                                             
+                        time:   [3.1444 us 3.2186 us 3.2975 us]
+                        thrpt:  [303.26 Kelem/s 310.69 Kelem/s 318.02 Kelem/s]
+                 change:
+                        time:   [-100.000% -100.000% -100.000%] (p = 0.00 < 0.05)
+                        thrpt:  [+28209928% +28703988% +29192843%]
+                        Performance has improved.
+Found 18 outliers among 100 measurements (18.00%)
+  3 (3.00%) high mild
+  15 (15.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/4                                                                             
+                        time:   [3.0983 us 3.1595 us 3.2356 us]
+                        thrpt:  [309.06 Kelem/s 316.51 Kelem/s 322.75 Kelem/s]
+                 change:
+                        time:   [-100.000% -100.000% -100.000%] (p = 0.00 < 0.05)
+                        thrpt:  [+31264904% +31802180% +32227336%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  5 (5.00%) high mild
+  6 (6.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/8                                                                             
+                        time:   [3.1564 us 3.1735 us 3.1979 us]
+                        thrpt:  [312.71 Kelem/s 315.11 Kelem/s 316.82 Kelem/s]
+                 change:
+                        time:   [-100.000% -100.000% -100.000%] (p = 0.00 < 0.05)
+                        thrpt:  [+30981851% +31211569% +31390813%]
+                        Performance has improved.
+Found 9 outliers among 100 measurements (9.00%)
+  2 (2.00%) high mild
+  7 (7.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/16                                                                             
+                        time:   [3.2088 us 3.2165 us 3.2248 us]
+                        thrpt:  [310.09 Kelem/s 310.90 Kelem/s 311.64 Kelem/s]
+                 change:
+                        time:   [-100.000% -100.000% -100.000%] (p = 0.00 < 0.05)
+                        thrpt:  [+29942742% +30207759% +30401827%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  5 (5.00%) high mild
+  6 (6.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/32                                                                             
+                        time:   [3.4332 us 3.4400 us 3.4472 us]
+                        thrpt:  [290.09 Kelem/s 290.70 Kelem/s 291.27 Kelem/s]
+                 change:
+                        time:   [-100.000% -100.000% -100.000%] (p = 0.00 < 0.05)
+                        thrpt:  [+28467483% +28635398% +28767508%]
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  2 (2.00%) high mild
+  4 (4.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/64                                                                             
+                        time:   [3.6811 us 3.7029 us 3.7356 us]
+                        thrpt:  [267.70 Kelem/s 270.06 Kelem/s 271.66 Kelem/s]
+                 change:
+                        time:   [-100.000% -100.000% -100.000%] (p = 0.00 < 0.05)
+                        thrpt:  [+26318422% +26511277% +26668666%]
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  2 (2.00%) high mild
+  4 (4.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/128                                                                             
+                        time:   [4.4888 us 4.4970 us 4.5058 us]
+                        thrpt:  [221.94 Kelem/s 222.37 Kelem/s 222.77 Kelem/s]
+                 change:
+                        time:   [-100.000% -100.000% -100.000%] (p = 0.00 < 0.05)
+                        thrpt:  [+23143822% +23253175% +23328923%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  4 (4.00%) low mild
+  4 (4.00%) high mild
+  3 (3.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/256                                                                             
+                        time:   [5.7968 us 5.8107 us 5.8269 us]
+                        thrpt:  [171.62 Kelem/s 172.10 Kelem/s 172.51 Kelem/s]
+                 change:
+                        time:   [-99.999% -99.999% -99.999%] (p = 0.00 < 0.05)
+                        thrpt:  [+17031654% +17128967% +17213464%]
+                        Performance has improved.
+Found 8 outliers among 100 measurements (8.00%)
+  4 (4.00%) high mild
+  4 (4.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/512                                                                             
+                        time:   [8.6095 us 8.6289 us 8.6506 us]
+                        thrpt:  [115.60 Kelem/s 115.89 Kelem/s 116.15 Kelem/s]
+                 change:
+                        time:   [-99.999% -99.999% -99.999%] (p = 0.00 < 0.05)
+                        thrpt:  [+11284627% +11334890% +11378036%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  4 (4.00%) high mild
+  7 (7.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/1024                                                                             
+                        time:   [14.090 us 14.122 us 14.159 us]
+                        thrpt:  [70.626 Kelem/s 70.810 Kelem/s 70.972 Kelem/s]
+                 change:
+                        time:   [-99.998% -99.998% -99.998%] (p = 0.00 < 0.05)
+                        thrpt:  [+6497086% +6519862% +6538331%]
+                        Performance has improved.
+Found 13 outliers among 100 measurements (13.00%)
+  7 (7.00%) high mild
+  6 (6.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/2048                                                                             
+                        time:   [25.326 us 25.357 us 25.390 us]
+                        thrpt:  [39.386 Kelem/s 39.436 Kelem/s 39.485 Kelem/s]
+                 change:
+                        time:   [-99.997% -99.997% -99.997%] (p = 0.00 < 0.05)
+                        thrpt:  [+3896693% +3908006% +3919076%]
+                        Performance has improved.
+Found 9 outliers among 100 measurements (9.00%)
+  5 (5.00%) high mild
+  4 (4.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/4096                                                                             
+                        time:   [48.280 us 48.358 us 48.448 us]
+                        thrpt:  [20.641 Kelem/s 20.679 Kelem/s 20.713 Kelem/s]
+                 change:
+                        time:   [-99.995% -99.995% -99.995%] (p = 0.00 < 0.05)
+                        thrpt:  [+2022875% +2030610% +2037485%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  1 (1.00%) low mild
+  1 (1.00%) high mild
+  9 (9.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/8192                                                                             
+                        time:   [91.044 us 91.179 us 91.325 us]
+                        thrpt:  [10.950 Kelem/s 10.967 Kelem/s 10.984 Kelem/s]
+                 change:
+                        time:   [-99.990% -99.990% -99.990%] (p = 0.00 < 0.05)
+                        thrpt:  [+995636% +999391% +1002342%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/16384                                                                             
+                        time:   [179.52 us 180.19 us 181.25 us]
+                        thrpt:  [5.5174 Kelem/s 5.5496 Kelem/s 5.5706 Kelem/s]
+                 change:
+                        time:   [-99.980% -99.980% -99.980%] (p = 0.00 < 0.05)
+                        thrpt:  [+492482% +496078% +499464%]
+                        Performance has improved.
+Found 9 outliers among 100 measurements (9.00%)
+  5 (5.00%) high mild
+  4 (4.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/32768                                                                            
+                        time:   [360.75 us 361.25 us 361.85 us]
+                        thrpt:  [2.7636 Kelem/s 2.7682 Kelem/s 2.7720 Kelem/s]
+                 change:
+                        time:   [-99.959% -99.959% -99.959%] (p = 0.00 < 0.05)
+                        thrpt:  [+243965% +245194% +246455%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  3 (3.00%) low mild
+  4 (4.00%) high mild
+  4 (4.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/65536                                                                            
+                        time:   [719.34 us 720.25 us 721.22 us]
+                        thrpt:  [1.3865 Kelem/s 1.3884 Kelem/s 1.3902 Kelem/s]
+                 change:
+                        time:   [-99.926% -99.925% -99.924%] (p = 0.00 < 0.05)
+                        thrpt:  [+131300% +132890% +134567%]
+                        Performance has improved.
+Found 7 outliers among 100 measurements (7.00%)
+  4 (4.00%) low mild
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/131072                                                                            
+                        time:   [1.4898 ms 1.4925 ms 1.4961 ms]
+                        thrpt:  [668.41  elem/s 670.03  elem/s 671.23  elem/s]
+                 change:
+                        time:   [-99.837% -99.837% -99.836%] (p = 0.00 < 0.05)
+                        thrpt:  [+60895% +61106% +61274%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  1 (1.00%) low severe
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/262144                                                                            
+                        time:   [2.9573 ms 2.9606 ms 2.9639 ms]
+                        thrpt:  [337.39  elem/s 337.77  elem/s 338.15  elem/s]
+                 change:
+                        time:   [-99.662% -99.661% -99.660%] (p = 0.00 < 0.05)
+                        thrpt:  [+29316% +29386% +29451%]
+                        Performance has improved.
+Found 7 outliers among 100 measurements (7.00%)
+  1 (1.00%) low mild
+  4 (4.00%) high mild
+  2 (2.00%) high severe
+Benchmarking hash_lookup_one_query_phone_varying_phone_db/524288: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 30.0s, enable flat sampling, or reduce sample count to 50.
+hash_lookup_one_query_phone_varying_phone_db/524288                                                                             
+                        time:   [5.9390 ms 5.9586 ms 5.9863 ms]
+                        thrpt:  [167.05  elem/s 167.82  elem/s 168.38  elem/s]
+                 change:
+                        time:   [-99.331% -99.329% -99.327%] (p = 0.00 < 0.05)
+                        thrpt:  [+14756% +14801% +14842%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  1 (1.00%) high mild
+  4 (4.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/1048576                                                                             
+                        time:   [12.036 ms 12.060 ms 12.087 ms]
+                        thrpt:  [82.734  elem/s 82.917  elem/s 83.087  elem/s]
+                 change:
+                        time:   [-98.842% -98.837% -98.833%] (p = 0.00 < 0.05)
+                        thrpt:  [+8467.7% +8498.6% +8532.9%]
+                        Performance has improved.
+Found 9 outliers among 100 measurements (9.00%)
+  7 (7.00%) high mild
+  2 (2.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/2097152                                                                            
+                        time:   [22.628 ms 22.704 ms 22.790 ms]
+                        thrpt:  [43.879  elem/s 44.045  elem/s 44.194  elem/s]
+                 change:
+                        time:   [-97.531% -97.522% -97.513%] (p = 0.00 < 0.05)
+                        thrpt:  [+3921.4% +3936.1% +3950.7%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  3 (3.00%) high mild
+  8 (8.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/4194304                                                                            
+                        time:   [45.598 ms 45.859 ms 46.151 ms]
+                        thrpt:  [21.668  elem/s 21.806  elem/s 21.931  elem/s]
+                 change:
+                        time:   [-95.436% -95.408% -95.375%] (p = 0.00 < 0.05)
+                        thrpt:  [+2062.3% +2077.9% +2091.1%]
+                        Performance has improved.
+Found 12 outliers among 100 measurements (12.00%)
+  3 (3.00%) high mild
+  9 (9.00%) high severe
+hash_lookup_one_query_phone_varying_phone_db/8388608                                                                            
+                        time:   [92.021 ms 92.777 ms 93.608 ms]
+                        thrpt:  [10.683  elem/s 10.779  elem/s 10.867  elem/s]
+                 change:
+                        time:   [-90.570% -90.498% -90.408%] (p = 0.00 < 0.05)
+                        thrpt:  [+942.55% +952.44% +960.49%]
+                        Performance has improved.
+Found 18 outliers among 100 measurements (18.00%)
+  1 (1.00%) high mild
+  17 (17.00%) high severe
+Benchmarking hash_lookup_one_query_phone_varying_phone_db/16777216: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 20.0s, or reduce sample count to 90.
+hash_lookup_one_query_phone_varying_phone_db/16777216                                                                            
+                        time:   [196.87 ms 198.84 ms 201.54 ms]
+                        thrpt:  [4.9618  elem/s 5.0292  elem/s 5.0796  elem/s]
+                 change:
+                        time:   [-83.016% -82.846% -82.616%] (p = 0.00 < 0.05)
+                        thrpt:  [+475.24% +482.95% +488.78%]
+                        Performance has improved.
+Found 20 outliers among 100 measurements (20.00%)
+  1 (1.00%) high mild
+  19 (19.00%) high severe
+Benchmarking hash_lookup_one_query_phone_varying_phone_db/33554432: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 37.9s, or reduce sample count to 50.
+hash_lookup_one_query_phone_varying_phone_db/33554432                                                                            
+                        time:   [374.57 ms 376.92 ms 379.53 ms]
+                        thrpt:  [2.6348  elem/s 2.6531  elem/s 2.6697  elem/s]
+                 change:
+                        time:   [-73.168% -72.981% -72.775%] (p = 0.00 < 0.05)
+                        thrpt:  [+267.31% +270.11% +272.70%]
+                        Performance has improved.
+Found 17 outliers among 100 measurements (17.00%)
+  17 (17.00%) high severe
+Benchmarking hash_lookup_one_query_phone_varying_phone_db/67108864: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 76.3s, or reduce sample count to 20.
+hash_lookup_one_query_phone_varying_phone_db/67108864                                                                            
+                        time:   [755.27 ms 760.12 ms 765.40 ms]
+                        thrpt:  [1.3065  elem/s 1.3156  elem/s 1.3240  elem/s]
+                 change:
+                        time:   [-56.208% -55.922% -55.597%] (p = 0.00 < 0.05)
+                        thrpt:  [+125.21% +126.87% +128.35%]
+                        Performance has improved.
+Found 22 outliers among 100 measurements (22.00%)
+  22 (22.00%) high severe
+Benchmarking hash_lookup_one_query_phone_varying_phone_db/134217728: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 148.0s, or reduce sample count to 10.
+hash_lookup_one_query_phone_varying_phone_db/134217728                                                                            
+                        time:   [1.4861 s 1.5032 s 1.5262 s]
+                        thrpt:  [0.6552  elem/s 0.6653  elem/s 0.6729  elem/s]
+                 change:
+                        time:   [-43.270% -42.606% -41.755%] (p = 0.00 < 0.05)
+                        thrpt:  [+71.689% +74.233% +76.274%]
+                        Performance has improved.
+Found 20 outliers among 100 measurements (20.00%)
+  4 (4.00%) high mild
+  16 (16.00%) high severe
+Benchmarking hash_lookup_one_query_phone_varying_phone_db/268435456: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 339.6s, or reduce sample count to 10.
+hash_lookup_one_query_phone_varying_phone_db/268435456                                                                            
+                        time:   [3.1703 s 3.2010 s 3.2448 s]
+                        thrpt:  [0.3082  elem/s 0.3124  elem/s 0.3154  elem/s]
+Found 19 outliers among 100 measurements (19.00%)
+  5 (5.00%) high mild
+  14 (14.00%) high severe
+Benchmarking hash_lookup_one_query_phone_varying_phone_db/536870912: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 741.2s, or reduce sample count to 10.
+hash_lookup_one_query_phone_varying_phone_db/536870912                                                                            
+                        time:   [6.2623 s 6.2949 s 6.3288 s]
+                        thrpt:  [0.1580  elem/s 0.1589  elem/s 0.1597  elem/s]
+                 change:
+                        time:   [+2.0120% +2.9703% +3.9448%] (p = 0.00 < 0.05)
+                        thrpt:  [-3.7950% -2.8846% -1.9724%]
+                        Performance has regressed.
+Found 25 outliers among 100 measurements (25.00%)
+  15 (15.00%) low mild
+  6 (6.00%) high mild
+  4 (4.00%) high severe
+Benchmarking hash_lookup_one_query_phone_varying_phone_db/1073741824: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 1452.9s, or reduce sample count to 10.
+hash_lookup_one_query_phone_varying_phone_db/1073741824                                                                            
+                        time:   [12.978 s 13.024 s 13.079 s]
+                        thrpt:  [0.0765  elem/s 0.0768  elem/s 0.0771  elem/s]
+Found 17 outliers among 100 measurements (17.00%)
+  3 (3.00%) low mild
+  3 (3.00%) high mild
+  11 (11.00%) high severe
+
+Benchmarking hash_lookup_large_db_varying_query_phone/1: Warming up for 5.0000 s
+Warning: Unable to complete 100 samples in 20.0s. You may wish to increase target time to 1477.4s, or reduce sample count to 10.
+Benchmarking hash_lookup_large_db_varying_query_phone/1: Collecting 100 sample

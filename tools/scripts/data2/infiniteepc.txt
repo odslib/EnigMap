@@ -1,0 +1,301 @@
+[ RUN      ] PerfOTree/0.PointSearchPartial
+
+[Report]
+max depth: 4
+max nodes: 4
+oram.N: 4
+oram.L: 2
+oram.Z: 4
+queries: 10000
+total time: 0.01412
+us/query: 1.412
+
+[/Report]
+
+[Report]
+max depth: 5
+max nodes: 8
+oram.N: 8
+oram.L: 3
+oram.Z: 4
+queries: 10000
+total time: 0.025998
+us/query: 2.5998
+
+[/Report]
+
+[Report]
+max depth: 7
+max nodes: 16
+oram.N: 16
+oram.L: 4
+oram.Z: 4
+queries: 10000
+total time: 0.046661
+us/query: 4.6661
+
+[/Report]
+
+[Report]
+max depth: 8
+max nodes: 32
+oram.N: 32
+oram.L: 5
+oram.Z: 4
+queries: 10000
+total time: 0.067552
+us/query: 6.7552
+
+[/Report]
+
+[Report]
+max depth: 10
+max nodes: 64
+oram.N: 64
+oram.L: 6
+oram.Z: 4
+queries: 10000
+total time: 0.100838
+us/query: 10.0838
+
+[/Report]
+
+[Report]
+max depth: 11
+max nodes: 128
+oram.N: 128
+oram.L: 7
+oram.Z: 4
+queries: 10000
+total time: 0.130516
+us/query: 13.0516
+
+[/Report]
+
+[Report]
+max depth: 13
+max nodes: 256
+oram.N: 256
+oram.L: 8
+oram.Z: 4
+queries: 10000
+total time: 0.180218
+us/query: 18.0218
+
+[/Report]
+
+[Report]
+max depth: 14
+max nodes: 512
+oram.N: 512
+oram.L: 9
+oram.Z: 4
+queries: 10000
+total time: 0.224032
+us/query: 22.4032
+
+[/Report]
+
+[Report]
+max depth: 16
+max nodes: 1024
+oram.N: 1024
+oram.L: 10
+oram.Z: 4
+queries: 10000
+total time: 0.301097
+us/query: 30.1097
+
+[/Report]
+
+[Report]
+max depth: 17
+max nodes: 2048
+oram.N: 2048
+oram.L: 11
+oram.Z: 4
+queries: 10000
+total time: 0.34734
+us/query: 34.734
+
+[/Report]
+
+[Report]
+max depth: 19
+max nodes: 4096
+oram.N: 4096
+oram.L: 12
+oram.Z: 4
+queries: 10000
+total time: 0.504785
+us/query: 50.4785
+
+[/Report]
+
+[Report]
+max depth: 20
+max nodes: 8192
+oram.N: 8192
+oram.L: 13
+oram.Z: 4
+queries: 10000
+total time: 0.741553
+us/query: 74.1553
+
+[/Report]
+
+[Report]
+max depth: 22
+max nodes: 16384
+oram.N: 16384
+oram.L: 14
+oram.Z: 4
+queries: 10000
+total time: 0.936424
+us/query: 93.6424
+
+[/Report]
+
+[Report]
+max depth: 23
+max nodes: 32768
+oram.N: 32768
+oram.L: 15
+oram.Z: 4
+queries: 10000
+total time: 1.39587
+us/query: 139.587
+
+[/Report]
+
+[Report]
+max depth: 25
+max nodes: 65536
+oram.N: 65536
+oram.L: 16
+oram.Z: 4
+queries: 10000
+total time: 1.57301
+us/query: 157.301
+
+[/Report]
+
+[Report]
+max depth: 26
+max nodes: 131072
+oram.N: 131072
+oram.L: 17
+oram.Z: 4
+queries: 10000
+total time: 1.69651
+us/query: 169.651
+
+[/Report]
+
+[Report]
+max depth: 28
+max nodes: 262144
+oram.N: 262144
+oram.L: 18
+oram.Z: 4
+queries: 10000
+total time: 2.20027
+us/query: 220.027
+
+[/Report]
+
+[Report]
+max depth: 29
+max nodes: 524288
+oram.N: 524288
+oram.L: 19
+oram.Z: 4
+queries: 10000
+total time: 2.34004
+us/query: 234.004
+
+[/Report]
+
+[Report]
+max depth: 31
+max nodes: 1048576
+oram.N: 1048576
+oram.L: 20
+oram.Z: 4
+queries: 10000
+total time: 2.65761
+us/query: 265.761
+
+[/Report]
+
+[Report]
+max depth: 32
+max nodes: 2097152
+oram.N: 2097152
+oram.L: 21
+oram.Z: 4
+queries: 10000
+total time: 3.05779
+us/query: 305.779
+
+[/Report]
+
+[Report]
+max depth: 34
+max nodes: 4194304
+oram.N: 4194304
+oram.L: 22
+oram.Z: 4
+queries: 10000
+total time: 3.41667
+us/query: 341.667
+
+[/Report]
+
+[Report]
+max depth: 35
+max nodes: 8388608
+oram.N: 8388608
+oram.L: 23
+oram.Z: 4
+queries: 10000
+total time: 4.12003
+us/query: 412.003
+
+[/Report]
+
+[Report]
+max depth: 37
+max nodes: 16777216
+oram.N: 16777216
+oram.L: 24
+oram.Z: 4
+queries: 10000
+total time: 4.39887
+us/query: 439.887
+
+[/Report]
+
+[Report]
+max depth: 38
+max nodes: 33554432
+oram.N: 33554432
+oram.L: 25
+oram.Z: 4
+queries: 10000
+total time: 4.37374
+us/query: 437.374
+
+[/Report]
+
+[Report]
+max depth: 40
+max nodes: 67108864
+oram.N: 67108864
+oram.L: 26
+oram.Z: 4
+queries: 10000
+total time: 4.83075
+us/query: 483.075
+
+[/Report]

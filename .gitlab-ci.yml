@@ -1,0 +1,286 @@
+variables:
+  GTEST_OUTPUT: "xml:/builder/quality/report.xml"
+  CLICOLOR_FORCE: "1"
+
+image: cppbuild:latest
+
+stages:
+  - sanity
+  - build
+  - test
+  - static-analysis
+  - profile
+  - perf
+  - graphs
+
+.clang: &clang
+  variables:
+    CXX: clang++
+    CC: clang
+
+.gcc: &gcc
+  variables:
+    CXX: g++
+    CC: gcc
+
+.debug: &debug
+  variables:
+    CMAKE_BUILD_TYPE: Debug
+  tags:
+    - debug
+
+.release: &release
+  variables:
+    CMAKE_BUILD_TYPE: Release
+  tags:
+    - release
+
+.production: &production
+  variables:
+    CMAKE_BUILD_TYPE: Release
+  tags:
+    - production
+
+sanity:
+  stage: sanity
+  script:
+    - export
+    - /scc
+  rules:
+    - allow_failure: true
+
+.build: &build
+  stage: build
+  artifacts:
+    paths:
+      - build/
+      - quality/
+  script:
+    - export
+    - mkdir quality
+    - mkdir quality/flamegraphs/
+    - mkdir quality/graphs/
+    - mkdir quality/runoutputs/
+    - cmake -B build -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -G Ninja
+    - ninja -C build
+
+build debug gcc:
+  <<: *build
+  extends: 
+    - .debug
+    - .gcc
+
+build release gcc:
+  <<: *build
+  extends:
+    - .release
+    - .gcc
+
+build debug clang:
+  <<: *build
+  extends:
+    - .debug
+    - .clang
+
+build release clang:
+  <<: *build
+  extends:
+    - .release
+    - .clang
+
+build enclaves:
+  stage: build
+  extends:
+    - .gcc
+  script:
+    - export
+    - source /startsgxenv.sh
+    - mkdir quality
+    - mkdir quality/flamegraphs/
+    - mkdir quality/graphs/
+    - mkdir quality/runoutputs/
+    - cd applications/
+    - cd benchmark_sgx/
+    - make
+    - cd ../
+    - cd signal/
+    - make
+    - cd ../
+  artifacts:
+    paths:
+      - applications/benchmark_sgx/.config_SIM_RELEASE_x64
+      - applications/benchmark_sgx/benchmark.elf
+      - applications/benchmark_sgx/enclave.so
+      - applications/benchmark_sgx/enclave.signed.so
+      - applications/signal/.config_SIM_DEBUG_x64
+      - applications/signal/signal.elf
+      - applications/signal/enclave.so
+      - applications/signal/enclave.signed.so
+      - quality/
+
+test enclaves benchmark:
+  stage: test
+  extends:
+    - .gcc
+  needs: ["build enclaves"]
+  script: 
+    - export
+    - source /startsgxenv.sh
+    - cd applications/benchmark_sgx/
+    - ./benchmark.elf | tee ../../quality/runoutputs/test_sgx_perf.txt
+  artifacts:
+    paths:
+      - quality/
+  
+test enclaves signal:
+  stage: test
+  extends:
+    - .gcc
+  needs: ["build enclaves"]
+  script: 
+    - export
+    - source /startsgxenv.sh
+    - cd applications/signal/
+    - ./signal.elf
+
+
+cppcheck:
+  stage: static-analysis
+  needs: ["build debug clang"]
+  script:
+    - mkdir build/quality || true
+    - ninja -C build cppcheck-builder
+  artifacts:
+    reports:
+      codequality: build/quality/cppcheck.json
+
+
+.unit tests: &unit_tests
+  stage: test
+  script:
+    - export
+    - ctest --output-junit "../../quality/gtestreport.xml" --output-on-failure --test-dir ./build/tests
+  # coverage: /^\s*lines:\s*\d+.\d+\%/
+  artifacts:
+    when: always
+    reports:
+      junit: quality/gtestreport.xml
+  #     cobertura: coverage.xml
+  timeout: 5 minutes
+
+unit tests debug clang:
+  <<: *unit_tests
+  needs: ["build debug clang"]
+  extends: 
+    - .debug
+    - .clang
+
+unit tests release clang:
+  <<: *unit_tests
+  needs: ["build release clang"]
+  extends: 
+    - .release
+    - .clang
+
+unit tests debug gcc:
+  <<: *unit_tests
+  needs: ["build debug gcc"]
+  extends: 
+    - .debug
+    - .gcc
+
+unit tests release gcc:
+  <<: *unit_tests
+  needs: ["build release gcc"]
+  extends: 
+    - .release
+    - .gcc
+
+.perf tests: &perf_tests
+  stage: perf
+  script:
+    - export
+    - ./build/tests/test_basic_perf --gtest_output="xml:./quality/gtestreport.xml" | tee ./quality/runoutputs/test_basic_perf.txt
+  resource_group: high_mem
+  artifacts:
+    when: always
+    reports:
+      junit: quality/gtestreport.xml
+    paths:
+      - quality/runoutputs
+  timeout: 60 minutes
+
+perf tests release clang:
+  <<: *perf_tests
+  needs: ["build release clang", "unit tests release clang"]
+  extends: 
+    - .release
+    - .clang
+
+perf tests release gcc:
+  <<: *perf_tests
+  needs: ["build release gcc", "unit tests release gcc"]
+  extends: 
+    - .release
+    - .gcc
+
+
+.profile tests: &profile_tests
+  stage: profile
+  script:
+    - ./build/tests/improvements_none
+    - mv ./quality/flamegraphs/flameProfile0-chrome.json ./quality/flamegraphs/improvements_none.json
+    - ./build/tests/improvements_packing
+    - mv ./quality/flamegraphs/flameProfile0-chrome.json ./quality/flamegraphs/improvements_packing.json
+    - ./build/tests/improvements_filecache
+    - mv ./quality/flamegraphs/flameProfile0-chrome.json ./quality/flamegraphs/improvements_filecache.json
+    - ./build/tests/improvements_bucketcache
+    - mv ./quality/flamegraphs/flameProfile0-chrome.json ./quality/flamegraphs/improvements_bucketcache.json
+    - ./build/tests/profiling_test
+  artifacts:
+    when: always
+    paths:
+      - quality/flamegraphs
+  timeout: 20 minutes
+
+profile tests debug clang:
+  <<: *profile_tests
+  needs: ["build debug clang", "unit tests debug clang"]
+  extends:
+    - .debug
+    - .clang
+
+profile tests release clang:
+  <<: *profile_tests
+  needs: ["build release clang", "unit tests release clang"]
+  extends:
+    - .release
+    - .clang
+
+profile tests debug gcc:
+  <<: *profile_tests
+  needs: ["build debug gcc", "unit tests debug gcc"]
+  extends:
+    - .debug
+    - .gcc
+
+profile tests release gcc:
+  <<: *profile_tests
+  needs: ["build release gcc", "unit tests release gcc"]
+  extends:
+    - .release
+    - .gcc
+
+graphs:
+  stage: graphs
+  script:
+    - python3 ./tools/scripts/plot_search.py --outfile quality/graphs/perf.png
+    - python3 ./tools/scripts/plot_search.py --outfile quality/graphs/perf-guidelines.png --showguidelines
+    - python3 ./tools/scripts/plot_intrinsics.py --outfile quality/graphs/intrinsics.png
+  artifacts:
+    when: always
+    paths:
+      - quality/graphs
+  needs: ["build release clang", "perf tests release clang", "test enclaves benchmark"]
+  timeout: 10 minutes
+  

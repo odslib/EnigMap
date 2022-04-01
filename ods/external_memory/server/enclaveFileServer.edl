@@ -1,0 +1,8 @@
+enclave {
+  untrusted {
+    public void ocall_InitServer([in] uint64_t sizeOfT, uint64_t N_);
+    public void ocall_SwapPage([in] uint64_t sizeOfT, [in] uint64_t index_in, [in] uint64_t index_out, [in, size=4096] uint8_t* page_in,  [out, size=4096] uint8_t* page_out);
+    public void ocall_ReadPage([in] uint64_t sizeOfT, [in] uint64_t index, [out, size=4096] uint8_t* page);
+    public void ocall_WritePage([in] uint64_t sizeOfT, [in] uint64_t index, [in, size=4096] uint8_t* page);
+  };
+};

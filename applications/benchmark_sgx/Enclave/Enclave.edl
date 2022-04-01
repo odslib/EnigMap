@@ -1,0 +1,4 @@
+enclave {
+  from "TrustedLibrary/bm.edl" import *;
+  from "sgx_tstdc.edl" import *;
+};
