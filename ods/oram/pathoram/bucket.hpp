@@ -32,6 +32,7 @@ namespace _ORAM::PathORAM::Bucket {
     static inline constexpr unsigned int BUCKET_SIZE = Z;
     static inline constexpr unsigned int _Z = Z;
 
+    #ifndef ENCLAVE_MODE
     friend std::ostream &operator<<(std::ostream &o, const BucketMetadata &x)
     {
       o << "{" << std::endl;
@@ -44,9 +45,10 @@ namespace _ORAM::PathORAM::Bucket {
       o << "}";
       return o;
     }
+    #endif
 
     
-    static inline CLANG_OR_GCC(constexpr, consteval) BucketMetadata DUMMY() {
+    static INLINE CLANG_OR_GCC(constexpr, consteval) BucketMetadata DUMMY() {
       BucketMetadata ret;
       for (int i=0; i<BUCKET_SIZE;i++) {
         ret.priv.addresses[i] = ORAMAddress::DUMMY();

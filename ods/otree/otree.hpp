@@ -25,7 +25,9 @@ namespace OBST {
     using EMPoint_t = typename std::pair<K,V>;
     using Vector_t = typename EM::Vector::Vector<EMPoint_t>;
     using StashedBlock_t = typename _ORAM::StashedBlock::StashedBlock<typename OramClient::Block_t>;
+    #ifndef NDEBUG
     std::map<K,V> m;
+    #endif
     uint64_t maxDepth = 0;
     uint64_t maxNodes = 0;
     uint64_t count = 0;
@@ -36,10 +38,10 @@ namespace OBST {
     OramClient oram;
 
     private:
-     explicit OBST(uint64_t _maxNodes, char)
+     explicit OBST(uint64_t _maxNodes, bool noInit, char)
     : maxNodes(GetNextPowerOfTwo(_maxNodes + 2)),
       maxDepth(GetLogBaseTwo(GetNextPowerOfTwo(_maxNodes + 2))), 
-      oram(_maxNodes + 2)
+      oram(_maxNodes + 2, noInit)
     {
       PROFILE_F(); 
       // UNDONE(): this bound can be improved, it can be 1.44, not 1.5;
@@ -50,7 +52,7 @@ namespace OBST {
     }
 
     public:
-    explicit OBST(uint64_t _maxNodes) : OBST(_maxNodes,'.')
+    explicit OBST(uint64_t _maxNodes, bool noInit=false) : OBST(_maxNodes,noInit,'.')
     {
       Block_t  NodeV;
 
@@ -167,14 +169,14 @@ namespace OBST {
       Block_t currBlock;
       _ORAM::Position newPos, newPos0;
       bool contained = false;
-
       newPos = newPos0 = oram.GenRandomPosition();
       for (int i = 0; i < maxDepth; i++) {
+
         // After we hit a fake node, we just keep accessing fake path's:
         //
         prev = curr.address;
         oram.BeginReadOp(curr.address, curr.position, currBlock, newPos);
-    
+
         CMOV(curr.address == FAKE_NODE.address, FAKE_NODE.position, newPos);
 
         // Find where to go next:
@@ -193,6 +195,7 @@ namespace OBST {
 
         // Commit node value:
         oram.FinishOramOp(prev, currBlock);
+        
         CMOV(curr.address == FAKE_NODE.address, curr.position, FAKE_NODE.position);
       }
       Assert(curr.address == FAKE_NODE.address);
@@ -200,12 +203,14 @@ namespace OBST {
 
       // Testing code:
       //
+      #ifndef NDEBUG
       if (m.count(k) > 0) {
         ret = m[k];
         return true;
       } else {
         return false;
       }
+      #endif
 
       return contained;
     }
@@ -248,7 +253,9 @@ namespace OBST {
 
     void Insert(const K &k, const V &v) {
       PROFILE_F();
+      #ifndef NDEBUG
       m[k] = v;
+      #endif
 
       _ORAM::ORAMAddress currP;
       _ORAM::ORAMAddress curr = root;
@@ -649,7 +656,7 @@ namespace OBST {
     }
 
   private:
-    inline Dir_t Direction(const Node& head, const K& k) {
+    INLINE Dir_t Direction(const Node& head, const K& k) {
       Dir_t ret = B_LEFT;
       CMOV(k == head.k, ret, B_LEFT);
       CMOV(k > head.k, ret, B_RIGHT);

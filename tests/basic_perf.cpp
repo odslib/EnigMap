@@ -1,5 +1,6 @@
 #include "oram/common/oram_client_interface.hpp"
 #include "otree/node.hpp"
+#include "common/dummy.hpp"
 #include <gtest/gtest.h>
 #include <map>
 using namespace _ORAM;
@@ -236,15 +237,14 @@ class BasicPerf : public testing::Test {
   using ORAMServer_t = _ORAM::ORAMClientInterface::ORAMClientInterface<Block_t, Bucket_t,T::EncryptLargeBuckets,T::LargeBucketSize,T::DirectlyCachedLevels>;
   using LargeBucket_t = typename ORAMServer_t::LargeBucket_t;
   using StashedBlock_t = typename StashedBlock::StashedBlock<Block_t>;
-  using BucketMetadata_t = typename Bucket_t::BucketMetadata_t;
 };
 #define TTHEADER() \
   using ORAMServer_t = typename TestFixture::ORAMServer_t; \
   using LargeBucket_t = typename TestFixture::LargeBucket_t; \
   using Block_t = typename TestFixture::Block_t; \
   using StashedBlock_t = typename TestFixture::StashedBlock_t; \
-  using Bucket_t = typename TestFixture::Bucket_t; \
-  using BucketMetadata_t = typename TestFixture::BucketMetadata_t;
+  using Bucket_t = typename TestFixture::Bucket_t; 
+  
 TYPED_TEST_SUITE_P(BasicPerf);
 
 TYPED_TEST_P(BasicPerf, PageEviction) {

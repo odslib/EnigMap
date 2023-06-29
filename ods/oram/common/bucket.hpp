@@ -40,6 +40,7 @@ struct DefaultBucketMetadata : MixedEncryptable<DefaultPublicMetadata<>, Default
   static inline constexpr unsigned int _Z = Z;
   static inline constexpr unsigned int BUCKET_SIZE = _Z;
 
+  #ifndef ENCLAVE_MODE
   friend std::ostream &operator<<(std::ostream &o, const DefaultBucketMetadata &x)
   {
     o << "{" << std::endl;
@@ -52,8 +53,9 @@ struct DefaultBucketMetadata : MixedEncryptable<DefaultPublicMetadata<>, Default
     o << "}";
     return o;
   }
+  #endif
 
-  static inline CLANG_OR_GCC(constexpr, consteval) DefaultBucketMetadata DUMMY() {
+  static INLINE CLANG_OR_GCC(constexpr, consteval) DefaultBucketMetadata DUMMY() {
     DefaultBucketMetadata ret;
     for (int i=0; i<Z-1; i++) {
       ret.priv.addresses[i] = ORAMAddress::DUMMY();
@@ -88,6 +90,7 @@ struct Bucket {
   BucketMetadata_t md;
   Block_t blocks[BUCKET_SIZE];
 
+  #ifndef ENCLAVE_MODE
   friend std::ostream &operator<<(std::ostream &o, const Bucket &x)
   {
     if (x.md.pub.invalidated) {
@@ -112,6 +115,7 @@ struct Bucket {
     o << "}";
     return o;
   }
+  #endif
 
   // UNDONE(): We want the bucket to forward encryptions, as, for instance, 
   // Metadata is only partially encrypted.

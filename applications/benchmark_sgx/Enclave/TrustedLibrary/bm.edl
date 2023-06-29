@@ -4,6 +4,14 @@ enclave {
     public void ecall_swap_page_4096([in, size=4096] uint8_t* page_in, [out, size=4096] uint8_t* page_out);
     public void ecall_swap_page_512([in, size=512] uint8_t* page_in, [out, size=512] uint8_t* page_out);
     public void ecall_swap_page_32([in, size=32] uint8_t* page_in, [out, size=32] uint8_t* page_out);
+    public void ecall_nops_4096([in, size=4096] uint8_t* page_in, [out, size=4096] uint8_t* page_out);
+    public void ecall_nops_512([in, size=512] uint8_t* page_in, [out, size=512] uint8_t* page_out);
+    public void ecall_nops_32([in, size=32] uint8_t* page_in, [out, size=32] uint8_t* page_out);
+    public void ecall_movs_1([in, size=4096] uint8_t* page_in, [out, size=4096] uint8_t* page_out);
+    public void ecall_movs_8([in, size=4096] uint8_t* page_in, [out, size=4096] uint8_t* page_out);    
+    public void ecall_bm_ewb(uint64_t times);
+    public void ecall_bm_encrypt(uint64_t size);
+    public void ecall_bm_decrypt(uint64_t size);
   };
   untrusted {
     /* 

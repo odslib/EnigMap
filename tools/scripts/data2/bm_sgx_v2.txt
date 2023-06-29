@@ -1,0 +1,27 @@
+root@995a79bbab4d:/builder/applications/benchmark_sgx# ./benchmark.elf 
+[Results]
+4096: 6130ns 
+[/Results]
+[Results]
+512: 4048ns 
+[/Results]
+[Results]
+32: 3765ns 
+[/Results]
+[Results]
+nops-4096: 4125ns 
+[/Results]
+[Results]
+nops-512: 3814ns 
+[/Results]
+[Results]
+nops-32: 3765ns 
+[/Results]
+[Results]
+mov-1: 1245ns 
+[/Results]
+[Results]
+mov-8: 161ns 
+[/Results]
+Hello!
+Info: Cxx14DemoEnclave successfully returned.

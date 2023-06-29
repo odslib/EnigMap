@@ -29,9 +29,9 @@ class PerfOTree : public testing::Test {
 };
 
 typedef ::testing::Types<
-    TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,3> >
-  , TestParameter<_ORAM::RingORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,ORAM__S,false,false,3> >
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,true  ,false,3> > 
+    TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,4> >
+  , TestParameter<_ORAM::RingORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,ORAM__S,false,false,4> >
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,true  ,false,4> > 
   , TestParameter<_ORAM::NotORAM::ORAMClient::ORAMClient<_OBST::Node,false,false> >
   , TestParameter<_ORAM::NotORAM::ORAMClient::ORAMClient<_OBST::Node,false,true> >
   , TestParameter<_ORAM::NotORAM::ORAMClient::ORAMClient<_OBST::Node,true,false> >

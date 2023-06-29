@@ -31,6 +31,8 @@ F(OBST)
 F(ORAMClient)
 F(FileServer)
 F(MemServer)
+F(FileServerBackend)
+F(MemServerBackend)
 
 F(GetBucketRef_Cache)
 F(GetBucketRef_SlowPath)
@@ -51,5 +53,7 @@ F(T_INIT_STASH_SIZE_1)
 F(T_INIT_STASH_SIZE_2)
 F(T_FINAL_STASH_SIZE_1)
 F(T_FINAL_STASH_SIZE_2)
+
+F(mapTransposeIdx)
 
 #undef F

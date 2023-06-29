@@ -33,7 +33,6 @@ base_divider = 245
 #
 points = [[575,0.56,575-521],[521,0.47,521 - 498],[498,0.45,0],[447,0.40,0]]
 
-
 # This loop turns the points into the format: [inst time, ocall+enc time, io time]
 for i, point in enumerate(points):
   # We need to turn the instruction cost into the actual instruction cost without the profiling overhead

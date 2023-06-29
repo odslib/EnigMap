@@ -36,8 +36,16 @@ SGX_MODE ?= SIM
 SGX_ARCH ?= x64
 SGX_DEBUG ?= 0
 
+######## Algorithm Settings ########
+ELEMENT_SIZE ?= 128
+ALGO ?= BUCKETSORT
+MIN_SIZE ?= 524288
+MAX_SIZE ?= 419430400
+STEP_RATIO ?= 1.2
+ENCLAVE_SIZE ?= 128
+IO_ROUND ?= 1
+DISK_IO ?= 0
 
-### <Intel example makefile>
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
 else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
@@ -68,15 +76,12 @@ else
         SGX_COMMON_FLAGS += -O3
 endif
 
-
-#cd /builder/build/ods && /usr/bin/c++ -DBOOST_STACKTRACE_USE_ADDR2LINE -I/builder/ods/. -g -O1 -g -fno-inline -no-pie -fdiagnostics-color -std=gnu++20 -MD -MT ods/CMakeFiles/common.dir/common/tracing/tracer.cpp.o -MF CMakeFiles/common.dir/common/tracing/tracer.cpp.o.d -o CMakeFiles/common.dir/common/tracing/tracer.cpp.o -c /builder/ods/common/tracing/tracer.cpp
-
-SGX_COMMON_FLAGS += -Wall -Wextra -Winit-self -Wpointer-arith -Wreturn-type \
-                    -Waddress -Wsequence-point -Wformat-security \
-                    -Wmissing-include-dirs -Wfloat-equal -Wundef -Wshadow \
-                    -Wcast-align -Wcast-qual -Wconversion -Wredundant-decls
+# SGX_COMMON_FLAGS += -Wall -Wextra -Winit-self -Wpointer-arith -Wreturn-type \
+#                     -Waddress -Wsequence-point -Wformat-security \
+#                     -Wmissing-include-dirs -Wfloat-equal -Wundef -Wshadow \
+#                     -Wcast-align -Wcast-qual -Wconversion -Wredundant-decls
 SGX_COMMON_CFLAGS := $(SGX_COMMON_FLAGS) -Wjump-misses-init -Wstrict-prototypes -Wunsuffixed-float-constants
-SGX_COMMON_CXXFLAGS := $(SGX_COMMON_FLAGS) -Wnon-virtual-dtor -std=gnu++20
+SGX_COMMON_CXXFLAGS := $(SGX_COMMON_FLAGS) -Wnon-virtual-dtor -std=c++20
 
 ######## App Settings ########
 
@@ -87,7 +92,7 @@ else
 endif
 
 App_Cpp_Files := App/App.cpp $(wildcard App/TrustedLibrary/*.cpp)
-App_Include_Paths := -IApp -I$(SGX_SDK)/include
+App_Include_Paths := -IApp -I$(SGX_SDK)/include -I../../ods/
 
 App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -96,6 +101,7 @@ App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
 #   Prerelease - Macro NDEBUG and EDEBUG enabled.
 #   Release - Macro NDEBUG enabled.
 ifeq ($(SGX_DEBUG), 1)
+		$(warning Debug mode!)
         App_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG
 else ifeq ($(SGX_PRERELEASE), 1)
         App_C_Flags += -DNDEBUG -DEDEBUG -UDEBUG
@@ -104,6 +110,11 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags)
+
+ifeq ($(DISK_IO), 1)
+	App_Cpp_Flags += -DDISK_IO
+endif
+
 App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread 
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
@@ -131,11 +142,42 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 
-Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/TrustedLibrary/*.cpp)
-Enclave_Include_Paths := -I../../ods -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/libcxx -I$(SGX_SDK)/include/tlibc 
 
-Enclave_C_Flags := -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths)
-Enclave_Cpp_Flags := $(Enclave_C_Flags) -nostdinc++
+BEARSSL_SOURCES := \
+	Enclave/bearssl/src/bearssl/aead/gcm.c \
+	Enclave/bearssl/src/bearssl/hash/ghash_pclmul.c \
+	Enclave/bearssl/src/bearssl/hash/sha2small.c \
+	Enclave/bearssl/src/bearssl/hash/sha1.c \
+	Enclave/bearssl/src/bearssl/codec/dec32be.c \
+	Enclave/bearssl/src/bearssl/codec/enc32be.c \
+	Enclave/bearssl/src/bearssl/mac/hmac.c \
+	Enclave/bearssl/src/bearssl/symcipher/aes_x86ni_ctr.c \
+	Enclave/bearssl/src/bearssl/symcipher/aes_x86ni.c \
+	Enclave/bearssl/src/bearssl/rand/hmac_drbg.c \
+	Enclave/bearssl/src/bearssl/rand/aesctr_drbg.c \
+
+
+
+Enclave_C_Files := $(BEARSSL_SOURCES) 
+Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/TrustedLibrary/*.cpp) 
+Enclave_Include_Paths := -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/libcxx -I$(SGX_SDK)/include/tlibc -I../../ods -IEnclave/bearssl/include -IEnclave/bearssl/src/bearssl
+
+Enclave_Flags := -fvisibility=hidden -fpie -fstack-protector -fno-builtin-printf -march=icelake-server $(Enclave_Include_Paths)
+
+ifeq ($(SGX_DEBUG), 1)
+	Enclave_Flags += -DDEBUG -UNDEBUG -UEDEBUG
+else ifeq ($(SGX_PRERELEASE), 1)
+	Enclave_Flags += -DNDEBUG -DEDEBUG -UDEBUG
+else
+	Enclave_Flags += -DNDEBUG -UEDEBUG -UDEBUG
+endif
+
+Enclave_C_Flags := $(Enclave_Flags) -std=c17 
+Enclave_Cpp_Flags := $(Enclave_Flags) -std=c++20 -nostdinc++ -DNOOPENSSL -DENCLAVE_MODE -DELEMENT_SIZE=${ELEMENT_SIZE} -DALGO=${ALGO} -DMIN_SIZE=${MIN_SIZE} -DMAX_SIZE=${MAX_SIZE} -DSTEP_RATIO=${STEP_RATIO} -DENCLAVE_SIZE=${ENCLAVE_SIZE} -DIO_ROUND=${IO_ROUND}
+
+ifeq ($(DISK_IO), 1)
+	Enclave_Cpp_Flags += -DDISK_IO
+endif
 
 # Enable the security flags
 Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
@@ -150,18 +192,19 @@ Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
 Enclave_Link_Flags := $(Enclave_Security_Link_Flags) \
     -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) \
-	 -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \
 	-Wl,--version-script=$(Enclave_Version_Script)
 
+Enclave_C_Objects := $(Enclave_C_Files:.c=.o)
 Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 
 Enclave_Name := enclave.so
 Signed_Enclave_Name := enclave.signed.so
 Enclave_Config_File := Enclave/Enclave.config.xml
+Enclave_Test_Key := Enclave/Enclave_private_test.pem
 
 ifeq ($(SGX_MODE), HW)
 ifeq ($(SGX_DEBUG), 1)
@@ -219,8 +262,6 @@ endif
 	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.*
 	@touch .config_$(Build_Mode)_$(SGX_ARCH)
 
-### </Intel example makefile>
-
 ######## App Objects ########
 
 App/Enclave_u.h: $(SGX_EDGER8R) Enclave/Enclave.edl
@@ -254,20 +295,28 @@ Enclave/Enclave_t.o: Enclave/Enclave_t.c
 	@echo "CC   <=  $<"
 
 Enclave/%.o: Enclave/%.cpp
-	$(CXX) $(SGX_COMMON_CXXFLAGS) $(Enclave_Cpp_Flags) -c $< -o $@
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(Enclave_Cpp_Objects): Enclave/Enclave_t.h
+$(Enclave_C_Objects): %.o: %.c Enclave/Enclave_t.h
+	@$(CC) $(SGX_COMMON_CFLAGS) $(Enclave_C_Flags) -c $< -o $@
 
-$(Enclave_Name): Enclave/Enclave_t.o $(Enclave_Cpp_Objects)
+$(Enclave_Cpp_Objects): %.o: %.cpp Enclave/Enclave_t.h
+
+$(Enclave_Name): Enclave/Enclave_t.o $(Enclave_Cpp_Objects) $(Enclave_C_Objects)
 	@$(CXX) $^ -o $@ $(Enclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_Enclave_Name): $(Enclave_Name)
-	@$(SGX_ENCLAVE_SIGNER) sign -key Enclave/Enclave_private_test.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
+ifeq ($(wildcard $(Enclave_Test_Key)),)
+	@echo "There is no enclave test key<Enclave_private_test.pem>."
+	@echo "The project will generate a key<Enclave_private_test.pem> for test."
+	@openssl genrsa -out $(Enclave_Test_Key) -3 3072
+endif
+	@$(SGX_ENCLAVE_SIGNER) sign -key $(Enclave_Test_Key) -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 
 .PHONY: clean
 
 clean:
-	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.*
+	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.* $(Enclave_Test_Key)

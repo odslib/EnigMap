@@ -11,7 +11,7 @@ enum class ProfilerEvent : uint32_t {
   Count,
 };
 
-inline std::string toString(const ProfilerEvent& e) {
+INLINE std::string toString(const ProfilerEvent& e) {
   switch(e) {
     case ProfilerEvent::Start: return "B";
     case ProfilerEvent::End: return "E";
@@ -46,33 +46,33 @@ struct Profiler {
     blockRecCount = 0;
   }
 
-  inline void BeginBlock(BlockProfiler_t& that) {
+  INLINE void BeginBlock(BlockProfiler_t& that) {
     Assert(blockRecCount < MAX_TRACKER_REC);
     TrackEvent(that.eventId, ProfilerEvent::Start);
     stack[blockRecCount] = &that;
     blockRecCount += 1;
   }
 
-  inline void EndBlock() {
+  INLINE void EndBlock() {
     blockRecCount -= 1;
     stack[blockRecCount]->Finish();
   }
 
-  inline void TrackEvent(const EventId eventId, ProfilerEvent eventType) {
+  INLINE void TrackEvent(const EventId eventId, ProfilerEvent eventType) {
     if (g_disableProfiling) return;
     auto currtime = std::chrono::system_clock::now();
     std::chrono::nanoseconds diff = currtime - start;
     logs.push_back({eventId, static_cast<uint64_t>(diff.count()), eventType});
   }
 
-  inline void TrackValue(const EventId eventId, uint64_t val) {
+  INLINE void TrackValue(const EventId eventId, uint64_t val) {
     if (g_disableProfiling) return;
     auto currtime = std::chrono::system_clock::now();
     std::chrono::nanoseconds diff = currtime - start;
     logs.push_back({eventId, static_cast<uint64_t>(diff.count()), ProfilerEvent::Count, val});
   }
   
-  inline void Measure(const EventId eventId, Empty) {
+  INLINE void Measure(const EventId eventId, Empty) {
     if (g_disableProfiling) return;
     TrackEvent(eventId, ProfilerEvent::End);
   }

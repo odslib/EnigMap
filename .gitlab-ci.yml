@@ -2,7 +2,7 @@ variables:
   GTEST_OUTPUT: "xml:/builder/quality/report.xml"
   CLICOLOR_FORCE: "1"
 
-image: cppbuild:latest
+image: xtrm0/cppbuilder:latest
 
 stages:
   - sanity
@@ -208,7 +208,7 @@ unit tests release gcc:
       junit: quality/gtestreport.xml
     paths:
       - quality/runoutputs
-  timeout: 60 minutes
+  timeout: 90 minutes
 
 perf tests release clang:
   <<: *perf_tests
@@ -277,10 +277,12 @@ graphs:
     - python3 ./tools/scripts/plot_search.py --outfile quality/graphs/perf.png
     - python3 ./tools/scripts/plot_search.py --outfile quality/graphs/perf-guidelines.png --showguidelines
     - python3 ./tools/scripts/plot_intrinsics.py --outfile quality/graphs/intrinsics.png
+    - python3 ./tools/scripts/plot_sort.py 
   artifacts:
     when: always
     paths:
       - quality/graphs
   needs: ["build release clang", "perf tests release clang", "test enclaves benchmark"]
   timeout: 10 minutes
+  
   

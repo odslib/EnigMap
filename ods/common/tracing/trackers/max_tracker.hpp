@@ -17,7 +17,7 @@ struct MaxTracker {
     }
   }
   
-  inline void Update(const EventId& eventId, uint64_t val) {
+  INLINE void Update(const EventId& eventId, uint64_t val) {
     if (g_disableTracing) return;
     const eint_t eid = static_cast<eint_t>(eventId);
     maxes[eid] = std::max(maxes[eid], val);

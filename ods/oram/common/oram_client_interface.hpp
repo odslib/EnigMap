@@ -57,6 +57,7 @@ namespace _ORAM::ORAMClientInterface {
     using Block_t = Block;
     using BucketMetadata_t = typename Bucket::BucketMetadata_t;
     using LargeBucket_t = LargeBucket::LargeBucket<typename Bucket::Encrypted_t,ENCRYPT_LARGE_BUCKETS,LEVELS_PER_PACK>;
+    using LargeBucket_LastLevel_t = LargeBucket::LargeBucket<typename Bucket::Encrypted_t,ENCRYPT_LARGE_BUCKETS,1>;
     // UNDONE(): paramterize ORAM_SERVER__BUCKET_CACHE_SIZE here
     Cache<Bucket,ORAM_SERVER__BUCKET_CACHE_SIZE> cache;
     
@@ -77,7 +78,8 @@ namespace _ORAM::ORAMClientInterface {
         EM::FileServer::FileServer<LargeBucket_t> server;
       #endif
     #else
-      EM::EnclaveFileServer::EnclaveFileServer<LargeBucket_t> server;
+      EM::MemServer::MemServer<LargeBucket_t> server;
+      // EM::EnclaveFileServer::EnclaveFileServer<LargeBucket_t> server;
     #endif
 
     #ifdef OCI_ASSERTIONS
@@ -95,20 +97,6 @@ namespace _ORAM::ORAMClientInterface {
       std::unordered_map<Duplet, BucketMetadata_t, KeyHash<Duplet> > checkdata_metadata;
     #endif
     
-    explicit ORAMClientInterface(uint64_t N) :
-      N_(N),
-      L_(CeilLog2(N)),
-      V_(1ULL << ((L_ + 1 + LEVELS_PER_PACK - 1) / LEVELS_PER_PACK * LEVELS_PER_PACK)),
-      server(V_/LargeBucket_t::BUCKETS_PER_PACK + LargeBucket_t::BUCKETS_PER_PACK)
-    {
-      TRACE_FUNCTION(N);
-      PROFILE_F();
-      // std::cerr << "oci.N_: " << N_ << std::endl;
-      // std::cerr << "oci.L_: " << L_ << std::endl;
-      // std::cerr << "oci.V_: " << V_ << std::endl;
-      data.resize(1 << DIRECTLY_CACHED_LEVELS, Bucket());
-      InitServer();
-    }
 
     void InitServer() {
       // UNDONE(): make sure this is always correct:
@@ -129,21 +117,46 @@ namespace _ORAM::ORAMClientInterface {
           b.md = Bucket::BucketMetadata_t::DUMMY();
           lb.buckets[j].Encrypt(b);
         }
-        typename LargeBucket_t::Encrypted_t elb;
-        elb.Encrypt(lb);
-        server.Write(i, elb);
+        server.Write(i, lb);
       }
     }
+
+    explicit ORAMClientInterface(uint64_t N, bool noInit=false) :
+      N_(N),
+      L_(CeilLog2(N)),
+      V_(1ULL << ((L_ + 1 + LEVELS_PER_PACK - 1) / LEVELS_PER_PACK * LEVELS_PER_PACK)),
+      server(V_/LargeBucket_t::BUCKETS_PER_PACK + LargeBucket_t::BUCKETS_PER_PACK)
+    {
+      TRACE_FUNCTION(N);
+      PROFILE_F();
+      // std::cerr << "oci.N_: " << N_ << std::endl;
+      // std::cerr << "oci.L_: " << L_ << std::endl;
+      // std::cerr << "oci.V_: " << V_ << std::endl;
+      data.resize(1 << DIRECTLY_CACHED_LEVELS, Bucket());
+      if (!noInit) {
+        InitServer();
+      }
+    }
+    
 
     // Copy not allowed!
     ORAMClientInterface& operator=(const ORAMClientInterface&) = delete;
     ORAMClientInterface(const ORAMClientInterface&) = delete;
 
-    Bucket& GetBucketRef(const Position& pos, const Index& depth) {
+    Bucket& GetBucketRef(Position pos, const Index& depth) {
       Assert(pos < V_);
       Assert(depth <= L_);
+      // UNDONE(): hack to make noinit not crash:
+      //
+      if (pos >= V_) {
+        pos = pos % V_;
+      }
+      Index rootDepth = depth - (depth % LEVELS_PER_PACK);
+      Index rootIdx = Indexers::GetHBIndex<LEVELS_PER_PACK>(L_, pos, rootDepth);
+      Index innerIdx = Indexers::GetLBIndex<LEVELS_PER_PACK>(L_, pos, depth);
       Index arr_idx = Indexers::GetArrIndex(L_, pos, depth);
-      if (depth < DIRECTLY_CACHED_LEVELS) {        
+     
+      if (depth < DIRECTLY_CACHED_LEVELS) {   
         return data[arr_idx];
       } else {
         if (!cache.CheckContains(arr_idx)) {
@@ -151,7 +164,7 @@ namespace _ORAM::ORAMClientInterface {
             // UNDONE(): put correct typename here:
             uint64_t evictedIndex;
             {
-              Bucket& evicted = cache.GetNextToEvict(evictedIndex);
+              Bucket& evicted = cache.GetNextToEvict(evictedIndex).val;
               typename Bucket::Encrypted_t evictedEnc;
               evictedEnc.Encrypt(evicted);
               Index rootIdx, innerIdx;

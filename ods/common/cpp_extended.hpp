@@ -2,6 +2,8 @@
 
 #ifndef ENCLAVE_MODE
 #include <chrono>
+#include <sstream>
+#include <iomanip>
 #include <iostream>
 #include <csignal>
 #include <ctime>
@@ -17,17 +19,16 @@
 #endif
 
 #include <iostream>
-#include <sstream>
-#include <iomanip>
 #include <utility>
 #include <inttypes.h>
 
 // struct std::ostringstream;
 // struct std::ostream;
+#ifndef ENCLAVE_MODE
 template<bool logTime, bool logFile>
 inline void Log_Recursive(const char* file, int line, std::ostringstream& msg)
 {
-    #ifndef ENCLAVE_MODE
+    
         auto now_c = std::chrono::system_clock::now();
         if constexpr (logTime) {
             std::cerr << "[" << now_c.time_since_epoch().count() / 1000000000 << "." << ((now_c.time_since_epoch().count() % 1000000000) / 1000) << "]";
@@ -36,9 +37,9 @@ inline void Log_Recursive(const char* file, int line, std::ostringstream& msg)
             std::cerr << "[" << file << ":" << line << "]: ";
         }
         std::cerr << msg.str();
-    #else
-        ocall_print_string(msg.str().c_str());
-    #endif
+
+        // ocall_print_string(msg.str().c_str());
+
 }
 
 template<typename T>
@@ -49,6 +50,7 @@ inline void Log_One(std::ostringstream& msg, T value)
 
 // c++20 is not compatible with c++14 libraries for the << for unsigned int's, so we overload with to_string:
 //
+
 template<>
 inline void Log_One<uint64_t>(std::ostringstream& msg, uint64_t value)
 {
@@ -95,14 +97,15 @@ void LogWrapper(const char* file, int line, const Args&... args)
     Log_Recursive<logTime, logFile>(file, line, msg, args...);
 }
 
+#endif
+
+
 template<typename T>
 inline constexpr bool IS_POD() {
     return std::is_trivial<T>() && std::is_standard_layout<T>();
 }
 
-
-
-
+#define static_false(msg) []<bool flag = false>() {static_assert(flag, msg);}();
 
 
 template <typename F>
@@ -187,10 +190,15 @@ inline _defer_class<F> _create_defer_class(F&& f) {
 #endif
 
 #ifndef NDEBUG
-
+#ifndef ENCLAVE_MODE
 #define Assert(expr, ...) if (expr) [[likely]] {} else { X_LOG("Assertion violated: {", #expr, "}" __VA_OPT__(, NAMED_VALUES(__VA_ARGS__))); X_FAIL(); }
 #define X_LOG(...) LogWrapper(__FILE__, __LINE__, __VA_ARGS__, "\n")
 #define X_LOG_SIMPLE(...) LogWrapper<false,false>(__FILE__, __LINE__, __VA_ARGS__)
+#else
+#define Assert(expr, ...) if (expr) [[likely]] {} else { printf("Assertion violated: { %s }\n", #expr); X_FAIL(); }
+#define X_LOG(...) 
+#define X_LOG_SIMPLE(...)
+#endif
 
 #else
 
@@ -200,6 +208,14 @@ inline _defer_class<F> _create_defer_class(F&& f) {
 
 #endif
 
+#ifndef NDEBUG
+/* When debugging is enabled, these form aliases to useful functions */
+#define dbg_printf(...) printf(__VA_ARGS__)
+
+#else
+/* When debugging is disabled, no code gets generated for these */
+#define dbg_printf(...)
+#endif
 
 #define STMT( stuff ) do { stuff } while (false);
 #define TRACE_FUNCTION(...)  STMT( \

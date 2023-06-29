@@ -35,12 +35,26 @@ codebuild/
 *.aux
 *.blg
 *.bbl
+*.fdb_latexmk
+*.fls
 */.ipynb_checkpoints/
+
+# pdf
+osort-paper.pdf
+obl-mmap.pdf
+
+# vscode stuff
+.vscode/
+
+# perf data
+perf.data*
 
 # SGX enclave stuff
 Enclave_t.h
 Enclave_t.c
 Enclave_u.h
 Enclave_u.c
+.config_HW_PRERELEASE_x64
 .config_SIM_DEBUG_x64
 .config_SIM_RELEASE_x64
+*.pem

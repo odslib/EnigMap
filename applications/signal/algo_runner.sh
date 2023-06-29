@@ -1,0 +1,55 @@
+#!/bin/bash
+source /startsgxenv.sh
+
+# Algorithms:
+# BUCKETSORT
+# OQUICKSORT
+# CABUCKETSORT
+# BITONICSORT
+# BUCKETSHUFFLE
+# ORSHUFFLE
+# CABUCKETSHUFFLE
+# BITONICSHUFFLE
+  
+ALGOs=(BUCKETSORT OQUICKSORT CABUCKETSORT BITONICSORT BUCKETSHUFFLE ORSHUFFLE CABUCKETSHUFFLE)
+# BITONICSHUFFLE
+MIN_ELEMENT_SIZE=128
+MAX_ELEMENT_SIZE=128
+ELEMENT_SIZE_STEP=8
+# MIN_SIZE=524288
+# MAX_SIZE=419430400
+MIN_SIZE=100000000
+MAX_SIZE=100000000
+MIN_ENCLAVE_SIZE=32 #MB
+MAX_ENCLAVE_SIZE=8192
+MOCK_IO=0
+
+if [ $MOCK_IO = 1 ]
+then
+    MOCK_IO_TAG=_MOCK_IO
+fi
+
+if [ $MAX_ENCLAVE_SIZE != 128 ]
+then
+    ENCLAVE_SIZE_TAG=_${MIN_ENCLAVE_SIZE}_${MAX_ENCLAVE_SIZE}
+fi
+
+for ALGO in ${ALGOs[@]}; do
+FILENAME=${ALGO}_${MIN_ELEMENT_SIZE}_${MAX_ELEMENT_SIZE}_${MIN_SIZE}_${MAX_SIZE}${MOCK_IO_TAG}${ENCLAVE_SIZE_TAG}.out
+rm -f $FILENAME
+for (( encsize=$MIN_ENCLAVE_SIZE; encsize<=$MAX_ENCLAVE_SIZE; encsize*=2 ))
+do
+heapsizeB=$(( encsize * 999424 ))
+hex_encsize=$(printf '%x\n' $heapsizeB)
+
+sed -i "/.*<Heap.*/c\  <HeapMaxSize>0x"${hex_encsize}"</HeapMaxSize>" ./Enclave/Enclave.config.xml
+for s in $(seq $MIN_ELEMENT_SIZE $ELEMENT_SIZE_STEP $MAX_ELEMENT_SIZE)
+do
+    make clean
+    make SGX_MODE=HW SGX_PRERELEASE=1 ELEMENT_SIZE=$s ALGO=$ALGO MIN_SIZE=$MIN_SIZE MAX_SIZE=$MAX_SIZE MOCK_IO=$MOCK_IO ENCLAVE_SIZE=$encsize
+    stdbuf -oL nohup ./signal.elf &>> $FILENAME < /dev/null
+    sleep 1
+done
+done
+done
+sed -i '/.*<Heap.*/c\  <HeapMaxSize>0x7A00000</HeapMaxSize>' ./Enclave/Enclave.config.xml

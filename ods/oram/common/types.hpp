@@ -6,9 +6,9 @@
 
 namespace _ORAM
 {
-  typedef uint32_t Index;
-  typedef uint32_t Position;
-  typedef uint32_t Address;
+  typedef uint64_t Index;
+  typedef uint64_t Position;
+  typedef uint64_t Address;
 
   constexpr inline Address DUMMY_ADDRESS = ~0;
   constexpr inline Position DUMMY_POSITION = ~0;
@@ -23,6 +23,7 @@ namespace _ORAM
         && position == o.position;
     }
 
+    #ifndef ENCLAVE_MODE
     friend std::ostream& operator<<(std::ostream& o, const ORAMAddress& x) {
       if (x.address == DUMMY_ADDRESS) {
         Assert(x.position == DUMMY_POSITION);
@@ -32,19 +33,10 @@ namespace _ORAM
       }
       return o;
     }
+    #endif
 
-    static consteval inline ORAMAddress DUMMY() { return ORAMAddress{DUMMY_ADDRESS, DUMMY_POSITION}; } 
+    static consteval INLINE ORAMAddress DUMMY() { return ORAMAddress{DUMMY_ADDRESS, DUMMY_POSITION}; } 
   };
-}
-
-template <typename T>
-inline consteval T MakeDummy() {
-  return T::DUMMY();
-}
-
-template <>
-inline consteval uint64_t MakeDummy<uint64_t>() {
-  return static_cast<uint64_t>(-1);
 }
 
 template<>

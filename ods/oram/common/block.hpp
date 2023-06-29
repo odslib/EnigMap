@@ -2,20 +2,22 @@
 #include "common/defs.hpp"
 #include "common/mov_intrinsics.hpp"
 #include "common/encrypted.hpp"
+#include "common/dummy.hpp"
 #include "oram/common/types.hpp"
 #include "oram/common/concepts.hpp"
 
 namespace _ORAM::Block {
   struct DefaultBlockData {
     uint64_t v;
-    static consteval inline DefaultBlockData DUMMY() {return DefaultBlockData{static_cast<uint64_t>(-1)}; }
+    static consteval INLINE DefaultBlockData DUMMY() {return DefaultBlockData{static_cast<uint64_t>(-1)}; }
     bool operator==(const DefaultBlockData &other) const = default;
+    #ifndef ENCLAVE_MODE
     friend std::ostream &operator<<(std::ostream &o, const DefaultBlockData &x) { o << x.v; return o; }
+    #endif
   };
-  using DefaultData_t = DefaultBlockData;
 
 
-  template<typename T=DefaultData_t, bool ENCRYPT_BLOCKS=ORAM__ENCRYPT_BLOCKS>
+  template<typename T=DefaultBlockData, bool ENCRYPT_BLOCKS=ORAM__ENCRYPT_BLOCKS>
   requires (IS_POD<T>())
   struct Block
   {
@@ -27,23 +29,26 @@ namespace _ORAM::Block {
     {
       return data == other.data;
     }
+
+    #ifndef ENCLAVE_MODE
     friend std::ostream &operator<<(std::ostream &o, const Block &x)
     {
       o << "(" << x.data << ")";
       return o;
     }
-    static consteval inline Block DUMMY() { return Block{MakeDummy<T>()}; }
+    #endif
+    static consteval INLINE Block DUMMY() { return Block{::DUMMY<T>()}; }
 
     using Encrypted_t = std::conditional_t<ENCRYPT_BLOCKS, Encrypted<Block>, NonEncrypted<Block>>;
   }; // struct Block
 
-  static_assert(IS_POD<Block<DefaultData_t> >());
-  static_assert(IS_POD<Block<DefaultData_t>::Encrypted_t >());
+  static_assert(IS_POD<Block<DefaultBlockData> >());
+  static_assert(IS_POD<Block<DefaultBlockData>::Encrypted_t >());
 } // namespace _ORAM::Block
 
 namespace _ORAM::StashedBlock
 {  
-  template<typename Block=Block::Block<Block::DefaultData_t> >
+  template<typename Block=_ORAM::Block::Block<_ORAM::Block::DefaultBlockData> >
   requires ::Concepts::Encryptable<Block>
   struct StashedBlock
   {
@@ -53,6 +58,7 @@ namespace _ORAM::StashedBlock
     ORAMAddress oaddress;
     Block block;
 
+    #ifndef ENCLAVE_MODE
     friend std::ostream &operator<<(std::ostream &o, const StashedBlock &x)
     {
       o << "(";
@@ -62,17 +68,23 @@ namespace _ORAM::StashedBlock
       o << x.oaddress << ", " << x.block << ")";
       return o;
     }
+    #endif
 
-    static consteval inline StashedBlock DUMMY() { return 
+    static consteval INLINE StashedBlock DUMMY() { return 
       StashedBlock{
         /*cached=*/false,
-        ORAMAddress::DUMMY(),
-        Block::DUMMY()
+        ::DUMMY<ORAMAddress>(),
+        ::DUMMY<Block>()
       };
+    }
+
+    bool operator==(const StashedBlock &other) const {
+      // X_LOG("[StashedBlock::operator==]", "this: ", *this, " other: ", other, " are equal:", (cached == other.cached && oaddress == other.oaddress && block == other.block), cached == other.cached, oaddress == other.oaddress, block == other.block);
+      return cached == other.cached && oaddress == other.oaddress && block == other.block;
     }
   }; // struct StashedBlock
 
-  static_assert(IS_POD<StashedBlock<Block::Block<Block::DefaultData_t> > >());
+  static_assert(IS_POD<StashedBlock<Block::Block<Block::DefaultBlockData> > >());
 
 } // namespace _ORAM::StashedBlock
 
@@ -93,6 +105,14 @@ INLINE void CMOV(const uint64_t& condition, _ORAM::StashedBlock::StashedBlock<T>
   CMOV(condition, A.block, B.block);
 }
 
+
+template<>
+INLINE void CXCHG<_ORAM::Block::DefaultBlockData>(const uint64_t& condition, _ORAM::Block::DefaultBlockData& A, _ORAM::Block::DefaultBlockData& B) {
+  const _ORAM::Block::DefaultBlockData C = A;
+  CMOV(condition, A, B);
+  CMOV(condition, B, C);
+}
+
 // UNDONE(): figure out how to not have to overload CXCHG and TSET here:
 //
 OVERLOAD_TSET_CXCHG(_ORAM::StashedBlock::StashedBlock<T>, typename T)
@@ -108,7 +128,10 @@ struct TaggedT {
   bool isDummy;
   uint64_t tag;
   T v;
-
+  
+  // UNDONE(): this function needs to stop being a member function and be a template function on it's
+  // own. The main reason is that T::DUMMY() for int is not callable.
+  //
   static consteval TaggedT DUMMY() {
     TaggedT ret;
     ret.isDummy = true;

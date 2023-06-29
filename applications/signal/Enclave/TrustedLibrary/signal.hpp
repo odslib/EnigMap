@@ -3,7 +3,7 @@
 #include "oram/pathoram/oram.hpp"
 #include "otree/otree.hpp"
 
-using ORAMClient_t = typename _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,3>;
+using ORAMClient_t = typename _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,ORAM_SERVER__LEVELS_PER_PACK>;
 using OramClient_t = typename _OBST::OramClient::OramClient<ORAMClient_t>;
 using OBST_t = typename _OBST::OBST::OBST<OramClient_t>;
 
@@ -11,11 +11,11 @@ using OBST_t = typename _OBST::OBST::OBST<OramClient_t>;
 struct Signal {
   void* client_;
   Signal(uint64_t _maxNumUsers) : client_(nullptr) {
-    X_LOG("Initializing signal");
-    OBST_t* client = static_cast<OBST_t*>(client_);
-    X_LOG("Calling constructor: ", _maxNumUsers);
-    client_ = new OBST_t(_maxNumUsers);
-    X_LOG("Constructor done");
+    printf("Initializing signal\n");
+    printf("%lld", sizeof(ORAMClient_t::ORAMClientInterface_t::LargeBucket_t));
+    printf("Calling constructor: %lld\n", _maxNumUsers);
+    client_ = new OBST_t(_maxNumUsers, true);
+    printf("Constructor done\n");
   }
 
   ~Signal() {

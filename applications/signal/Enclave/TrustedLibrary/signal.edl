@@ -1,14 +1,19 @@
 enclave {
   trusted {
-    public void ecall_signal_sanity(void);
+    public void ecall_signal_search(uint64_t size);
+    public void ecall_signal_insert(uint64_t size);
+    public void ecall_signal_initialization(uint64_t size);
   };
 
   untrusted {
     void ocall_FAIL();
     void ocall_print_string([in, string] const char *str);
-    void ocall_InitServer(uint64_t sizeOfT, uint64_t N_);
-    void ocall_SwapPage(uint64_t sizeOfT, uint64_t index_in, uint64_t index_out, [in, size=4096] uint8_t* page_in,  [out, size=4096] uint8_t* page_out);
-    void ocall_ReadPage(uint64_t sizeOfT, uint64_t index, [out, size=4096] uint8_t* page);
-    void ocall_WritePage(uint64_t sizeOfT, uint64_t index, [in, size=4096] uint8_t* page);
+    uint64_t ocall_measure_time();
+    uint8_t* ocall_InitServer(uint64_t sizeOfT, uint64_t N_);
+    void ocall_DeleteServer();
+    void ocall_Read_Batch([in, count=chunkNum] uint64_t* offsets, [in, count=chunkNum] uint64_t* sizes, [out, count=totalSize] uint8_t* tmp, uint64_t chunkNum, uint64_t totalSize);
+    void ocall_Read(uint64_t pos, uint64_t length, [out, count=length] uint8_t* page);
+    void ocall_Write_Batch([in, count=chunkNum] uint64_t* offsets, [in, count=chunkNum] uint64_t* sizes, [in, count=totalSize] uint8_t* tmp, uint64_t chunkNum, uint64_t totalSize);
+    void ocall_Write(uint64_t pos, uint64_t length, [in, count=length] const uint8_t* page);
   };
 };

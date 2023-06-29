@@ -30,13 +30,13 @@
 // B: block size in bits
 // Z: number of blocks in bucket (4 in our case)
 namespace _ORAM::PathORAM::ORAMClient {
-template<typename T=Block::DefaultData_t
+template<typename T=Block::DefaultBlockData
   , unsigned int Z=ORAM__Z
   , bool ENCRYPT_BUCKETS=true
   , bool ENCRYPT_LARGE_BUCKETS=ORAM_SERVER__ENCRYPT_LARGE_BUCKETS
   , unsigned int LEVELS_PER_PACK=ORAM_SERVER__LEVELS_PER_PACK
   , unsigned int DIRECTLY_CACHED_LEVELS=ORAM_SERVER__DIRECTLY_CACHED_LEVELS
-  , bool ObliviousCPUTrace=false>
+  , bool ObliviousCPUTrace=true>
 struct ORAMClient {
   using _T = T;
   using Block_t = typename Block::Block<T, false>;
@@ -66,30 +66,35 @@ struct ORAMClient {
   //
   std::vector<std::tuple<Position, Index> > bucketsToReorder_; 
 
+  bool noInit;
+
   // This constructor initializes ORAM with an empty AVL tree.
   //
-  explicit ORAMClient(uint64_t N) : 
-      oramServerClient(N)
+  explicit ORAMClient(uint64_t N, bool _noInit=false) : 
+      oramServerClient(N, _noInit)
     , N_(N)
     , L_(CeilLog2(N))
     , S_(Z * (CeilLog2(N)+1) + ORAM__MS)
     , state{false, DUMMY_POSITION}
+    , noInit(_noInit)
     {
     PROFILE_F();
       
     // Fill the server with encryptions of dummy block
     // 
-    Bucket_t bucket;
-    BucketMetadata_t md;
-    for (uint64_t l = 0; l <= L_; ++l) {
-      for (uint64_t i = 0; i < (1 << l); ++i) {
-        uint64_t pos = i << (L_ - l);
-        for (uint64_t j = 0; j < Bucket_t::BUCKET_SIZE; ++j) {
-          bucket.blocks[j] = Block_t::DUMMY();
-          oramServerClient.WriteBlock(pos, l, j, bucket.blocks[j]);
-          md = BucketMetadata_t::DUMMY();
+    if (!noInit) {
+      Bucket_t bucket;
+      BucketMetadata_t md;
+      for (uint64_t l = 0; l <= L_; ++l) {
+        for (uint64_t i = 0; i < (1 << l); ++i) {
+          uint64_t pos = i << (L_ - l);
+          for (uint64_t j = 0; j < Bucket_t::BUCKET_SIZE; ++j) {
+            bucket.blocks[j] = Block_t::DUMMY();
+            oramServerClient.WriteBlock(pos, l, j, bucket.blocks[j]);
+            md = BucketMetadata_t::DUMMY();
+          }
+          oramServerClient.WriteBucketMetadata(pos, l, md);
         }
-        oramServerClient.WriteBucketMetadata(pos, l, md);
       }
     }
     X_LOG("ORAMClientInterface: Done setting client up!");
@@ -133,10 +138,10 @@ struct ORAMClient {
     //
     uint32_t validNonDummies = 0;
     for (Index j=0; j < Bucket_t::BUCKET_SIZE; j++) {
-      StashedBlock_t sb = StashedBlock_t::DUMMY();
+      StashedBlock_t sb = DUMMY<StashedBlock_t>();
       oramServerClient.ReadBlock(pos, depth, j, sb.block);
       sb.oaddress = md.priv.addresses[j];
-      md.priv.addresses[j] = ORAMAddress::DUMMY();
+      md.priv.addresses[j] = DUMMY<ORAMAddress>();
       stash_.push_back(sb);
     }
   }
@@ -236,6 +241,9 @@ struct ORAMClient {
       } else {
         EvictPath_ExternalOblivious();
         CleanUpStash_ExternalOblivious();
+      }
+      if (stash_.size() > ORAM__MS) {
+        stash_.resize(ORAM__MS);
       }
     }
     state.forcedIntoStash = false;
@@ -510,7 +518,6 @@ private:
         }
       }
     }
-    // This would be the needed if we had this function as cpu trace oblivious:
     // ObliSortBlocks<StashedBlock_t>(stash_, cmp);
     auto newSize = std::min(stash_.size(), S_);
     // UNDONE(): recursive ORAM is needing the following, debug why, should not be needed.

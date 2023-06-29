@@ -1,0 +1,90 @@
+azureuser@sgxazure:~/odsl/applications/benchmark_ewb$ ./benchmark.elf 
+[Results]
+4096: 9024ns 
+[/Results]
+[Results]
+512: 7391ns 
+[/Results]
+[Results]
+32: 7375ns 
+[/Results]
+[Results]
+nops-4096: 7565ns 
+[/Results]
+[Results]
+nops-512: 7225ns 
+[/Results]
+[Results]
+nops-32: 7214ns 
+[/Results]
+[Results]
+mov-1: 919ns 
+[/Results]
+[Results]
+mov-8: 234ns 
+[/Results]
+[Results]
+bm_ewb-1-512: 2978ns 
+[/Results]
+[Results]
+bm_ewb-1-1024: 6012ns 
+[/Results]
+[Results]
+bm_ewb-1-2048: 12090ns 
+[/Results]
+[Results]
+bm_ewb-1-4096: 24054ns 
+[/Results]
+[Results]
+bm_ewb-1-8192: 24016ns 
+[/Results]
+[Results]
+bm_ewb-1-16384: 24644ns 
+[/Results]
+[Results]
+bm_ewb-1-32768: 24522ns 
+[/Results]
+[Results]
+bm_ewb-2-512: 3087ns 
+[/Results]
+[Results]
+bm_ewb-2-1024: 6074ns 
+[/Results]
+[Results]
+bm_ewb-2-2048: 12209ns 
+[/Results]
+[Results]
+bm_ewb-2-4096: 24398ns 
+[/Results]
+[Results]
+bm_ewb-2-8192: 24335ns 
+[/Results]
+[Results]
+bm_ewb-2-16384: 24603ns 
+[/Results]
+[Results]
+bm_ewb-2-32768: 24703ns 
+[/Results]
+[Results]
+bm_ewb-3-512: 3060ns 
+[/Results]
+[Results]
+bm_ewb-3-1024: 6092ns 
+[/Results]
+[Results]
+bm_ewb-3-2048: 12231ns 
+[/Results]
+[Results]
+bm_ewb-3-4096: 24361ns 
+[/Results]
+[Results]
+bm_ewb-3-8192: 24311ns 
+[/Results]
+[Results]
+bm_ewb-3-16384: 24531ns 
+[/Results]
+[Results]
+bm_ewb-3-32768: 25067ns 
+[/Results]
+Hello!
+Info: Cxx14DemoEnclave successfully returned.

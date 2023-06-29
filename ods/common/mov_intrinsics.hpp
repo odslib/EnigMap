@@ -3,6 +3,8 @@
 #include <inttypes.h>
 #include <typeinfo>
 #include "cpp_extended.hpp"
+#include <cstring>
+#include <immintrin.h>
 
 INLINE void CSWAP8(const uint64_t swap, uint64_t *guy1, uint64_t *guy2) {
   asm volatile("test %%rdi, %%rdi\n\t"
@@ -78,6 +80,7 @@ INLINE void CMOV_BOOL(const uint64_t& cond, bool& val1, const bool& val2) {
 
 template<typename T>
 INLINE void CMOV(const uint64_t& cond, T& val1, const T& val2) {
+  
   Assert(false, "This should mov not be compiled check that you implemented CMOV"
     "and that if you used overloading that you called OVERLOAD_TSET_CXCHG. For type: ", typeid(T).name());
   if (cond) {
@@ -103,6 +106,130 @@ INLINE void CXCHG(const uint64_t& cond, T& A, T& B) {
   CMOV(cond, A, B);
   CMOV(cond, B, C);
 }
+
+template <const uint64_t sz>
+INLINE void CXCHG_internal(const bool cond, void* vec1, void* vec2) {
+  static_assert(sz <= 64);
+  // static_assert(sz % 8 == 0);
+  const __mmask8 blend_mask = (__mmask8)(!cond)-1;
+
+#if defined(__AVX512VL__)
+
+  if constexpr (sz == 64) {
+    __m512i vec1_temp, vec2_temp;
+    std::memcpy(&vec1_temp, vec1, 64);
+    std::memcpy(&vec2_temp, vec2, 64);
+    const __m512i& vec1_after_swap = _mm512_mask_blend_epi64(blend_mask, vec1_temp, vec2_temp);
+    const __m512i& vec2_after_swap = _mm512_mask_blend_epi64(blend_mask, vec2_temp, vec1_temp);
+    std::memcpy(vec1, &vec1_after_swap, 64);
+    std::memcpy(vec2, &vec2_after_swap, 64);
+    return;
+  }
+  if constexpr (sz >= 32) {
+    __m256d vec1_temp, vec2_temp;
+    std::memcpy(&vec1_temp, vec1, 32);
+    std::memcpy(&vec2_temp, vec2, 32);
+    const __m256d& vec1_after_swap = _mm256_mask_blend_pd(blend_mask, vec1_temp, vec2_temp);
+    const __m256d& vec2_after_swap = _mm256_mask_blend_pd(blend_mask, vec2_temp, vec1_temp);
+    std::memcpy(vec1, &vec1_after_swap, 32);
+    std::memcpy(vec2, &vec2_after_swap, 32);
+  }
+  if constexpr (sz % 32 >= 16) {
+    constexpr uint64_t offset = 4 * (sz / 32);
+    __m128d vec1_temp, vec2_temp;
+    std::memcpy(&vec1_temp, (uint64_t*)vec1 + offset, 16);
+    std::memcpy(&vec2_temp, (uint64_t*)vec2 + offset, 16);
+    const __m128d& vec1_after_swap = _mm_mask_blend_pd(blend_mask, vec1_temp, vec2_temp);
+    const __m128d& vec2_after_swap = _mm_mask_blend_pd(blend_mask, vec2_temp, vec1_temp);
+    std::memcpy((uint64_t*)vec1 + offset, &vec1_after_swap, 16);
+    std::memcpy((uint64_t*)vec2 + offset, &vec2_after_swap, 16);
+  }
+
+#else
+
+  if constexpr (sz == 64) {
+    for (uint64_t i=0; i<8; i++) {
+      uint64_t* curr1_64 = &(((uint64_t*)vec1)[i]);
+      uint64_t* curr2_64 = &(((uint64_t*)vec2)[i]);
+      CXCHG(cond, *curr1_64, *curr2_64);
+    }
+    return;
+  }
+  if constexpr (sz >= 32) {
+    for (uint64_t i=0; i<4; i++) {
+      uint64_t* curr1_64 = &(((uint64_t*)vec1)[i]);
+      uint64_t* curr2_64 = &(((uint64_t*)vec2)[i]);
+      CXCHG(cond, *curr1_64, *curr2_64);
+    }
+  }
+  if constexpr (sz % 32 >= 16) {
+    constexpr uint64_t offset = 4 * (sz / 32);
+    for (uint64_t i=0; i<2; i++) {
+      uint64_t* curr1_64 = &(((uint64_t*)vec1)[i+offset]);
+      uint64_t* curr2_64 = &(((uint64_t*)vec2)[i+offset]);
+      CXCHG(cond, *curr1_64, *curr2_64);
+    }
+  }
+
+#endif
+
+  
+  if constexpr (sz % 16 >= 8) {
+    constexpr uint64_t offset = 2 * (sz / 16);
+    uint64_t* curr1_64 = (uint64_t*)vec1 + offset;
+    uint64_t* curr2_64 = (uint64_t*)vec2 + offset;
+    CXCHG(cond, *curr1_64, *curr2_64);
+  }
+  if constexpr (sz % 8 >= 4) {
+    constexpr uint64_t offset = 2 * (sz / 8);
+    uint32_t* curr1_32 = (uint32_t*)vec1 + offset;
+    uint32_t* curr2_32 = (uint32_t*)vec2 + offset;
+    CXCHG(cond, *curr1_32, *curr2_32);
+  }
+  if constexpr (sz % 4 >= 2) {
+    constexpr uint64_t offset = 2 * (sz / 4);
+    uint16_t* curr1_16 = (uint16_t*)vec1 + offset;
+    uint16_t* curr2_16 = (uint16_t*)vec2 + offset;
+    CXCHG(cond, *curr1_16, *curr2_16);
+  }
+  if constexpr (sz % 2 >= 1) {
+    constexpr uint64_t offset = 2 * (sz / 2);
+    uint8_t* curr1_8 = (uint8_t*)vec1 + offset;
+    uint8_t* curr2_8 = (uint8_t*)vec2 + offset;
+    CXCHG(cond, *curr1_8, *curr2_8);
+  }
+}
+
+template<typename T>
+INLINE void obliSwap(const bool mov, T& guy1, T& guy2) {
+  // static_assert(sizeof(T)%8 == 0);
+  __m512i* curr1 = (__m512i*)&guy1;
+  __m512i* curr2 = (__m512i*)&guy2;
+  for (uint64_t i = 0; i < sizeof(T) / 64; ++i) {
+    CXCHG_internal<64>(mov, curr1, curr2);
+    curr1++;
+    curr2++;
+  }
+  constexpr uint64_t rem_size = sizeof(T) % 64;
+  if constexpr (rem_size > 0) {
+    CXCHG_internal<rem_size>(mov, curr1, curr2);
+  }
+
+}
+
+INLINE uint32_t mm256_extract_epi32_var_indx(const __m256i vec, const unsigned int i) {   
+  __m128i indx = _mm_cvtsi32_si128(i);
+  __m256i val  = _mm256_permutevar8x32_epi32(vec, _mm256_castsi128_si256(indx));
+  return         _mm_cvtsi128_si32(_mm256_castsi256_si128(val));
+}   
+
+// decrement vec at index i, if i >= 8, return vec
+INLINE __m256i mm256_decrement_epi32_var_indx(const __m256i vec, const unsigned int i) {
+  static const __m256i mask = _mm256_set_epi32(7,6,5,4,3,2,1,0);
+  __m256i cmp = _mm256_set1_epi32(i);  // create 256-bit register with i in all 32-bit lanes
+  __m256i cmp_result = _mm256_cmpeq_epi32(mask, cmp); // will set the matching 32 bits as 111..11
+  return _mm256_add_epi32(vec, cmp_result); // decrement
+} 
 
 
 // Some CMOV specializations:
@@ -137,6 +264,20 @@ INLINE void CMOV<int>(const uint64_t& cond, int& val1, const int& val2) {
   // UNDONE(): Make this a reinterpret cast?
   //
   CMOV4(cond, (uint32_t&) val1, val2);
+}
+
+template<>
+INLINE void CMOV<short>(const uint64_t& cond, short& val1, const short& val2) {
+  // UNDONE(): Make this a reinterpret cast?
+  //
+  CMOV2(cond, (uint16_t&) val1, val2);
+}
+
+template<>
+INLINE void CMOV<int8_t>(const uint64_t& cond, int8_t& val1, const int8_t& val2) {
+  // UNDONE(): Make this a reinterpret cast?
+  //
+  CMOV1(cond, (uint8_t&) val1, val2);
 }
 
 // Other cmov specializations are inside the respective headers for the types.

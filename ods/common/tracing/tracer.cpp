@@ -2,7 +2,7 @@
 
 #ifndef ENCLAVE_MODE
 
-static void print_stacktrace(int signum) {
+void print_stacktrace(int signum) {
   ::signal(signum, SIG_DFL);
   std::cerr << "Stack trace:\n" << boost::stacktrace::stacktrace() << '\n';
   Profiler::g_Tracker.Reset();
@@ -11,22 +11,15 @@ static void print_stacktrace(int signum) {
   ::raise(SIGABRT);
 }
 
-struct OnExitHandlerInstaller {
-  int theStart;
-  OnExitHandlerInstaller() {
-    theStart = 10;
-    std::cerr << "Installing signal handler" << std::endl;
-    ::signal(SIGSEGV, &print_stacktrace);
-    ::signal(SIGABRT, &print_stacktrace);
-  }
-};
-
 TimeTracker TimeTracker::g_Tracker;
 Profiler Profiler::g_Tracker;
 
-MaxTracker g_MaxTracker;
+MaxTracker g_MaxTracker; //UNDONE(4234):v why does this doesn't need to be defined
 bool g_disableTracing = false;
 bool g_disableProfiling = true;
 OnExitHandlerInstaller g_OnExit;
 
+
 #endif
+
+PerfCounters g_PerfCounters; //UNDONE(4234):^ but this need to be defined

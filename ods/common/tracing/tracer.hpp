@@ -39,18 +39,18 @@
     BlockTracer( const BlockTracer& ) = delete; // non construction-copyable
     BlockTracer& operator=( const BlockTracer& ) = delete; // non copyable
 
-    inline BlockTracer(const EventId eventId) : eventId(eventId) {
+    INLINE BlockTracer(const EventId eventId) : eventId(eventId) {
       Assert(eventId != EventId::LAST_EVENT);
       T::g_Tracker.BeginBlock(*this);
     }
 
-    inline void Finish() {
+    INLINE void Finish() {
       Assert(eventId != EventId::LAST_EVENT);
       T::g_Tracker.Measure(eventId, metadata);
       eventId = EventId::LAST_EVENT;
     }
 
-    inline ~BlockTracer() {
+    INLINE ~BlockTracer() {
       if (eventId != EventId::LAST_EVENT) {
         T::g_Tracker.EndBlock();
       }
@@ -60,8 +60,28 @@
   constexpr uint64_t TOTAL_TRACKERS = static_cast<std::underlying_type_t<EventId> >(EventId::LAST_EVENT);
   constexpr uint64_t MAX_TRACKER_REC = 128;
 
-  struct OnExitHandlerInstaller;
+
+  /// Code related to initialization
+  //
+  extern void print_stacktrace(int signum);
+  struct OnExitHandlerInstaller {
+    int theStart;
+
+    void Init() {
+      theStart = 10;
+      std::cerr << "Installing signal handler" << std::endl;
+      ::signal(SIGSEGV, &print_stacktrace);
+      ::signal(SIGABRT, &print_stacktrace);
+    }
+
+    OnExitHandlerInstaller() {
+      Init();
+    }
+  };
   extern OnExitHandlerInstaller g_OnExit;
+  //
+  //
+  
 
   #include "trackers/time_tracker.hpp"
   #include "trackers/max_tracker.hpp"
@@ -114,3 +134,5 @@
 #define SWITCH_TRACE_B(name) 
 #define TRACE_MAX(varName, val)
 #endif
+
+#include "common/tracing/perf.hpp"

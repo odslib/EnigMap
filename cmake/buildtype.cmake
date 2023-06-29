@@ -1,5 +1,5 @@
-# set(default_build_type "Debug")
-set(default_build_type "Release")
+set(default_build_type "Debug")
+# set(default_build_type "Release")
 # if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
 #   set(default_build_type "Debug")
 # endif()

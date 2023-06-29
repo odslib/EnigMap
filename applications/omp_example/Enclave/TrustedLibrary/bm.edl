@@ -1,0 +1,16 @@
+enclave {
+  trusted {
+    public void ecall_cxx14_quoted(void);
+    public void ecall_swap_page_4096([in, size=4096] uint8_t* page_in, [out, size=4096] uint8_t* page_out);
+    public void ecall_swap_page_512([in, size=512] uint8_t* page_in, [out, size=512] uint8_t* page_out);
+    public void ecall_swap_page_32([in, size=32] uint8_t* page_in, [out, size=32] uint8_t* page_out);
+  };
+  untrusted {
+    /* 
+    * ocall_print_string - invokes OCALL to display string buffer inside the enclave.
+    *  [in]: copy the string buffer to App outside.
+    *  [string]: specifies 'str' is a NULL terminated buffer.
+    */
+    void ocall_print_string([in, string] const char *str);
+  };
+};

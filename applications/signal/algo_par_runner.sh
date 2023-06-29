@@ -1,0 +1,16 @@
+#!/bin/bash
+source /startsgxenv.sh
+ALGO=BUCKETSORT
+
+ELEMENT_SIZE=128
+SIZE=10000000
+SIZE=10000000
+PROCESS=10
+FILENAME=${ALGO}_${ELEMENT_SIZE}_${SIZE}_${PROCESS}processes.out
+rm -f $FILENAME
+make clean
+make SGX_MODE=HW SGX_PRERELEASE=1 ELEMENT_SIZE=$ELEMENT_SIZE ALGO=$ALGO MIN_SIZE=$SIZE MAX_SIZE=$SIZE
+for p in $(seq 1 1 $PROCESS)
+do
+    ./signal.elf &>> $FILENAME < /dev/null &
+done

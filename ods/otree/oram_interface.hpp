@@ -50,7 +50,7 @@ struct OramClient {
   State state;
   #endif
 
-  explicit OramClient(uint64_t N) : N_(N), oram(N) {
+  explicit OramClient(uint64_t N, bool noInit=false) : N_(N), oram(N, noInit) {
     L_ = CeilLog2(N_);
 
     #ifndef NDEBUG 
@@ -115,7 +115,7 @@ struct OramClient {
   //
   // UNDONE(): Remove ret from here
   //
-  inline void GetNextFreeBlockOp(Address& i, Block_t& ret, const Position& newPos) {
+  INLINE void GetNextFreeBlockOp(Address& i, Block_t& ret, const Position& newPos) {
     // Allocates a new block that will reside in newPos.
     // This function, if fully implemented should be very similar to BeginOramOp, except it reads the
     // address and position of the next block on the freelist from the block
@@ -141,7 +141,7 @@ struct OramClient {
 
   // UNDONE(): remove currPos from here
   //
-  inline void FreeBlockMaybeFOp(const Address& address, Position currPos, bool shouldFree) {
+  INLINE void FreeBlockMaybeFOp(const Address& address, Position currPos, bool shouldFree) {
     #ifndef NDEBUG
     Assert(state.tp == State::Tp::READY);
     Assert(!shouldFree || ((address+1) == nextFreeBlock.address));
@@ -154,7 +154,7 @@ struct OramClient {
     CMOV(shouldFree, nextFreeBlock.address, nextFreeBlock.address-1);
   }
 /**/
-  inline void InitViaLargeStashVector(EM::Vector::Vector<_ORAM::StashedBlock::StashedBlock<Block_t>> builtstash) {
+  INLINE void InitViaLargeStashVector(EM::Vector::Vector<_ORAM::StashedBlock::StashedBlock<Block_t>> builtstash) {
     // UNDONE(24): Review and write tests for this code, it was rushed to have
     // experimental numbers for the optimal initialization algorithm, it probably has bugs.
     //
@@ -169,13 +169,13 @@ struct OramClient {
     uint64_t currSize = builtstash.size();
 
 
-    EM::Algorithm::BucketObliviousRandomPermutation(maxStash);
+    // EM::Algorithm::BucketObliviousShuffle(maxStash.begin(), maxStash.end());
 
     for (uint64_t l=L_+1; l-->0;) {
       // Bellow it's the actuall algorithm, we are just doing K iterations of 
       // random permutations to simulate the largest overhead part of it.
       
-      // EM::Algorithm::BucketObliviousRandomPermutation(maxStash);
+      // EM::Algorithm::BucketObliviousShuffle(maxStash);
       // if (maxStash.N > 20) {
         // maxStash.N = GetNextPowerOfTwo(((maxStash.N/4)+1)*2);
       // }

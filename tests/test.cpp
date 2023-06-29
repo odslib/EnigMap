@@ -2,6 +2,9 @@
 #include "otree/otree.hpp"
 #include <gtest/gtest.h>
 #include <map>
+#include "external_memory/server/serverFrontend.hpp"
+#include "external_memory/server/serverAllocator.hpp"
+
 using namespace _ORAM;
 using namespace std;
 

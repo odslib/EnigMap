@@ -24,7 +24,6 @@ using LargeBucket_t = ORAMServer_t::LargeBucket_t;
 using Block_t = ORAMClient_t::Block_t;
 using StashedBlock_t = ORAMClient_t::StashedBlock_t;
 using Bucket_t = ORAMClient_t::Bucket_t;
-using BucketMetadata = Bucket_t::BucketMetadata_t;
 
 TEST(Profiling, Sanity) {
   PROFILER_SET(false);

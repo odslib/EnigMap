@@ -71,7 +71,7 @@ namespace _ORAM::RingORAM::Bucket {
     }
 
     
-    static inline CLANG_OR_GCC(constexpr, consteval) BucketMetadata DUMMY() {
+    static INLINE CLANG_OR_GCC(constexpr, consteval) BucketMetadata DUMMY() {
       BucketMetadata ret;
       ret.pub.counter = 0;
       ret.pub.invalidated = false;

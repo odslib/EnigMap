@@ -20,19 +20,19 @@ struct TimeTracker {
     blockRecCount = 0;
   }
 
-  inline void BeginBlock(BlockTracer_t& that) {
+  INLINE void BeginBlock(BlockTracer_t& that) {
     Assert(blockRecCount < MAX_TRACKER_REC);
     that.metadata = std::chrono::system_clock::now();
     stack[blockRecCount] = &that;
     blockRecCount += 1;
   }
 
-  inline void EndBlock() {
+  INLINE void EndBlock() {
     blockRecCount -= 1;
     stack[blockRecCount]->Finish();
   }
   
-  inline void Measure(const EventId eventId, const std::chrono::_V2::system_clock::time_point& start) {
+  INLINE void Measure(const EventId eventId, const std::chrono::_V2::system_clock::time_point& start) {
     auto end = std::chrono::system_clock::now();
     if (g_disableTracing) return;
     const eint_t eid = static_cast<eint_t>(eventId);

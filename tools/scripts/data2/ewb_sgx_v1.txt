@@ -1,0 +1,87 @@
+    [Results]
+4096: 8993ns 
+[/Results]
+[Results]
+512: 7502ns 
+[/Results]
+[Results]
+32: 7328ns 
+[/Results]
+[Results]
+nops-4096: 7756ns 
+[/Results]
+[Results]
+nops-512: 7343ns 
+[/Results]
+[Results]
+nops-32: 7503ns 
+[/Results]
+[Results]
+mov-1: 946ns 
+[/Results]
+[Results]
+mov-8: 254ns 
+[/Results]
+[Results]
+bm_ewb-1-512: 14575ns 
+[/Results]
+[Results]
+bm_ewb-1-1024: 16184ns 
+[/Results]
+[Results]
+bm_ewb-1-2048: 19172ns 
+[/Results]
+[Results]
+bm_ewb-1-4096: 25296ns 
+[/Results]
+[Results]
+bm_ewb-1-8192: 24862ns 
+[/Results]
+[Results]
+bm_ewb-1-16384: 23561ns 
+[/Results]
+[Results]
+bm_ewb-1-32768: 21300ns 
+[/Results]
+[Results]
+bm_ewb-2-512: 14493ns 
+[/Results]
+[Results]
+bm_ewb-2-1024: 16003ns 
+[/Results]
+[Results]
+bm_ewb-2-2048: 19056ns 
+[/Results]
+[Results]
+bm_ewb-2-4096: 25081ns 
+[/Results]
+[Results]
+bm_ewb-2-8192: 24512ns 
+[/Results]
+[Results]
+bm_ewb-2-16384: 23446ns 
+[/Results]
+[Results]
+bm_ewb-2-32768: 21297ns 
+[/Results]
+[Results]
+bm_ewb-3-512: 14457ns 
+[/Results]
+[Results]
+bm_ewb-3-1024: 15982ns 
+[/Results]
+[Results]
+bm_ewb-3-2048: 19037ns 
+[/Results]
+[Results]
+bm_ewb-3-4096: 25112ns 
+[/Results]
+[Results]
+bm_ewb-3-8192: 24572ns 
+[/Results]
+[Results]
+bm_ewb-3-16384: 23604ns 
+[/Results]
+[Results]
+bm_ewb-3-32768: 21370ns 
+[/Results]

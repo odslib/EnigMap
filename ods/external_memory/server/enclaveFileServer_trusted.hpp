@@ -2,6 +2,7 @@
 #include <cinttypes>
 
 #include "common/lrucache.hpp"
+#include "external_memory/server/cached.hpp"
 
 // Similar to fileServer.hpp, but separated to be used within an enclave.
 //
@@ -9,71 +10,57 @@ namespace EM {
 namespace EnclaveFileServer {
 // T is typically a LargeBucket
 //
-template<typename T, uint64_t CACHE_SIZE=ORAM_SERVER__CACHE_SIZE>
-struct EnclaveFileServer {
-  static inline constexpr auto sizeOfT = sizeof(T);
+template <typename T>
+struct EnclaveFileServerBackend {
+  static inline constexpr auto sizeOfT = sizeof(typename T::Encrypted_t);
   typedef uint64_t IndexType;
   IndexType N;
-  _ORAM::Cache<T,CACHE_SIZE> cache;
 
-  EnclaveFileServer(IndexType _N) : N(_N)  {
+  EnclaveFileServerBackend(IndexType _N) : N(_N) {
     TRACE_FUNCTION(_N);
-    ocall_InitServer(sizeOfT, _N);
+    ocall_InitServer(nullptr, 4096, _N);
   }
 
-  T& Access(const IndexType i) {
-    Assert(i < N, i, N);
-    if (!cache.CheckContains(i)) {
-      bool wasFull = false;
-      IndexType evictedIndex;
-      typename T::Encrypted_t evictedEnc;
-
-      if (cache.IsFull()) {
-        {
-          T& evicted = cache.GetNextToEvict(evictedIndex);          
-          evictedEnc.Encrypt(evicted);
-        }
-        cache.EvictLRU(evictedIndex);
-      }
-      typename T::Encrypted_t retEnc;
-      T ret;
-
-      if (wasFull) {
-        Swap(evictedIndex, i, evictedEnc, retEnc);
-      } else {
-        Read(i, retEnc);
-      }
-      retEnc.Decrypt(ret);
-      std::ignore = cache.Insert(i, ret);
-    }
-
-    return cache.Access(i);
+  void Swap(const IndexType index_in, const IndexType index_out, const T& in,
+            T& out) {
+    Write(index_in, in);
+    Read(index_out, out);
   }
 
-  void Swap(const IndexType index_in, const IndexType index_out, const typename T::Encrypted_t & in, typename T::Encrypted_t & out) {
-    Assert(index_in < N);
-    Assert(index_out < N);
-    
-    uint8_t aux[4096];
-    memcpy(aux, &index_in, sizeOfT);
-    ocall_WritePage(sizeOfT, index_in, aux);
-    ocall_ReadPage(sizeOfT, index_out, aux);
-    memcpy(&out, aux, sizeOfT);
-  }
-
-  void Write(const IndexType i, const typename T::Encrypted_t & in) {
+  void Write(const IndexType i, const T& in) {
     Assert(i < N);
-    uint8_t aux[4096];
-    memcpy(aux, &in, sizeOfT);
-    ocall_WritePage(sizeOfT, i, aux);
+    Assert(sizeOfT <= 4096);
+
+    uint8_t aux[4096] = {0};
+    typename T::Encrypted_t inEnc;
+    inEnc.Encrypt(in);
+    memcpy(aux, &inEnc, sizeOfT);
+    printf("prepare enclave write page %ld of size %ld\n", i, sizeOfT);
+    // for (size_t i = 0; i < 4096; ++i) {
+    //   printf("%d ", aux[i]);
+    // }
+    // printf("\n");
+    ocall_Write(i, 4096, aux);
+    printf("end enclave write page %ld of size %ld\n", i, sizeOfT);
   }
 
-  void Read(const IndexType i, typename T::Encrypted_t & out) {
+  void Read(const IndexType i, T& out) {
     Assert(i < N);
+    Assert(sizeOfT <= 4096);
+
     uint8_t aux[4096];
-    ocall_ReadPage(sizeOfT, i, aux);
-    memcpy(&out, aux, sizeOfT);
+    typename T::Encrypted_t inEnc;
+    printf("prepare enclave read page %ld of size %ld\n", i, sizeOfT);
+    ocall_Read(i, 4096, aux);
+    printf("end enclave read page %ld of size %ld\n", i, sizeOfT);
+    memcpy(&inEnc, aux, sizeOfT);
+    inEnc.Decrypt(out);
   }
-}; // struct EnclaveFileServer
-} // namespace EnclaveFileServer
-} // namespace _ORAM
+};  // struct EnclaveFileServerBackend
+
+template <typename T, uint64_t CACHE_SIZE = (1UL << 16)>
+using EnclaveFileServer =
+    _ORAM::Cached<T, EnclaveFileServerBackend<T>, CACHE_SIZE, 2>;
+
+}  // namespace EnclaveFileServer
+}  // namespace EM

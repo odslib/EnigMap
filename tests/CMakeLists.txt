@@ -17,6 +17,7 @@ target_link_libraries(
   oram
   common
   otree
+  recoram
 )
 
 add_executable(
@@ -24,6 +25,7 @@ add_executable(
   test.cpp
   oram.cpp
   otree.cpp
+  # recursive.cpp
 )
 target_compile_definitions(test1 PRIVATE BOOST_STACKTRACE_USE_ADDR2LINE)
 target_link_libraries(
@@ -33,6 +35,19 @@ target_link_libraries(
   oram
   common
   otree
+  recoram
+)
+
+add_executable(
+  test_algo
+  sort.cpp
+)
+target_compile_definitions(test_algo PRIVATE BOOST_STACKTRACE_USE_ADDR2LINE)
+target_link_libraries(
+  test_algo
+  dl
+  gtest_main
+  common
 )
 
 add_executable(
@@ -47,6 +62,7 @@ target_link_libraries(
   oram
   common
   otree
+  recoram
 )
 
 
@@ -55,6 +71,7 @@ add_executable(
   test_basic_perf
   basic_perf.cpp
   perf_ods.cpp
+  perf_sort.cpp
 )
 target_compile_definitions(test_basic_perf PRIVATE BOOST_STACKTRACE_USE_ADDR2LINE)
 target_link_libraries(
@@ -140,5 +157,6 @@ target_link_libraries(
 include(GoogleTest)
 gtest_discover_tests(test_sanity)
 gtest_discover_tests(test1)
+gtest_discover_tests(test_algo)
 # gtest_discover_tests(basic_perf)
 # gtest_discover_tests(stagingtests)

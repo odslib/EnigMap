@@ -28,7 +28,7 @@
 // B: block size in bits
 // Z: number of blocks in bucket (4 in our case)
 namespace _ORAM::RingORAM::ORAMClient {
-template<typename T=Block::DefaultData_t
+template<typename T=Block::DefaultBlockData
   , unsigned int Z=ORAM__Z
   , unsigned int S=ORAM__S
   , bool ENCRYPT_BLOCKS=ORAM__ENCRYPT_BLOCKS
@@ -67,7 +67,7 @@ struct ORAMClient {
 
   // This constructor initializes ORAM with empty data.
   //
-  explicit ORAMClient(uint64_t N) : 
+  explicit ORAMClient(uint64_t N, bool noInit=false) : 
       oramServerClient(N)
     , N_(N)
     , L_(CeilLog2(N))

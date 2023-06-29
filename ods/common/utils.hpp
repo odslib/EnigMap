@@ -6,11 +6,11 @@
 #include <fstream>
 #include <memory>
 #include <vector>
-
+#include "common/encutils.hpp"
 #include "common/mov_intrinsics.hpp"
 #include "common/defs.hpp"
 
-inline uint64_t GetNextPowerOfTwo(uint64_t n)  {
+constexpr INLINE uint64_t GetNextPowerOfTwo(uint64_t n)  {
   Assert(n <= 0x8000'0000'0000'0000);
   n = n-1;
   n |= n >> 1;
@@ -23,7 +23,7 @@ inline uint64_t GetNextPowerOfTwo(uint64_t n)  {
   return n;
 }
 
-inline uint64_t GetLogBaseTwo(uint64_t n) {
+INLINE uint64_t GetLogBaseTwo(uint64_t n) {
   const uint64_t masks[6] = {0x2, 0xC, 0xF0, 0xFF00, 0xFFFF'0000, 0xFFFF'FFFF'0000'0000};
   uint64_t c = 32;
   uint64_t r = 0;
@@ -36,7 +36,7 @@ inline uint64_t GetLogBaseTwo(uint64_t n) {
   return r;
 }
 
-inline uint64_t CeilLog2(uint64_t x)
+INLINE uint64_t CeilLog2(uint64_t x)
 {
   static const uint64_t t[6] = {
     0xFFFFFFFF00000000ull,
@@ -61,17 +61,48 @@ inline uint64_t CeilLog2(uint64_t x)
   return y;
 }
 
+
+INLINE uint64_t reverseLowest32Bits(uint64_t x) {
+    uint64_t cells;
+
+    const uint64_t filter16 = 0x0000ffff0000fffful;
+    const uint64_t filter8  = 0x00ff00ff00ff00fful;
+    const uint64_t filter4  = 0x0f0f0f0f0f0f0f0ful;
+    const uint64_t filter2  = 0x3333333333333333ul;
+    const uint64_t filter1  = 0x5555555555555555ul;
+
+    // swap neighboring bits in bundle of 16 and shift left by 16 bits
+    cells = x & filter16;
+    x = (x ^ cells) | (cells << 32);
+    // swap neighboring bits in bundle of 8 and shift left by 8 bits
+    cells = x & filter8;
+    x = (x ^ cells) | (cells << 16);
+    // swap neighboring bits in bundle of 4 and shift left by 4 bits
+    cells = x & filter4;
+    x = (x ^ cells) | (cells << 8);
+    // swap neighboring bits in bundle of 2 and shift left by 2 bits
+    cells = x & filter2;
+    x = (x ^ cells) | (cells << 4);
+    // swap neighboring bits in bundle of 1 and shift left by 1 bit
+    cells = x & filter1;
+    x = (x ^ cells) | (cells << 2);
+
+    return x >> 31;
+
+}
+
+
 // Turns a number in [0, (1<<bits)-1] to Reverse Lexicographical Order
 // in [0, (1<<bits)-1].
-inline uint64_t ToReverseLexicographicalOrder(uint64_t n, uint64_t bits) {
+INLINE uint64_t ToReverseLexicographicalOrder(uint64_t n, uint64_t bits) {
   uint64_t reversedNumber = 0;
-  for (int i=0; i<bits; i++) {
+  for (int i=0; i<(int)bits; i++) {
     reversedNumber |= (((n >> i) & 1) << (bits - i - 1));
   }
   return ((1<<bits) - reversedNumber) - 1;
 }
 
-inline void GetRand16(uint8_t* out) {
+INLINE void GetRand16(uint8_t* out) {
   // UNDONE: we can make this random again,
   // but we don't actually need it for aes-gcm,
   // as long as iv's are not repeated.
@@ -87,16 +118,64 @@ inline void GetRand16(uint8_t* out) {
 	// f.close();
 }
 
+// calculates mod(N, p) where N is expressed as a vector of uint64_t, i.e., base 2^64
+// @pre: p should not exceed INT32_MAX
+inline uint64_t large_num_mod(const std::vector<uint64_t>& nums, uint64_t p) {
+  uint64_t res = 0;
+  const uint64_t pow2_64_mod_p = (UINT64_MAX % p + 1) % p;
+  for (uint64_t num: nums) {
+    res = (res * pow2_64_mod_p + num % p) % p;
+  }
+  return res;
+}
+
+extern RandGen default_rand;
+
 // [left,right]
 inline uint64_t UniformRandom(uint64_t left, uint64_t right) {
-  // UNDONE(0): This needs to be random
-  //
-  static uint64_t cache = 0;
-  cache = (cache + 1);
-  return ((cache) % (right-left+1)) + left;
+  return default_rand.rand64() % (right - left + 1) + left;
+}
+
+inline uint32_t UniformRandom32(uint32_t left, uint32_t right) {
+  return default_rand.rand32() % (right - left + 1) + left;
+}
+
+inline bool UniformRandomBit() {
+  return default_rand.rand1();
 }
 
 // [0,right]
-inline uint64_t UniformRandom(uint64_t right) {
+INLINE uint64_t UniformRandom(uint64_t right) {
   return UniformRandom(0,right);
+}
+
+// [0,right]
+INLINE uint64_t UniformRandom() {
+  return default_rand.rand64();
+}
+
+INLINE uint64_t UniformRandom32(uint32_t right) {
+  return UniformRandom32(0,right);
+}
+
+// [0,right]
+INLINE uint64_t UniformRandom32() {
+  return default_rand.rand32();
+}
+
+// x/y round up
+INLINE uint64_t divRoundUp(size_t x, size_t y) {
+  return (x+y-1) / y;
+}
+
+/**
+  * Note: this function is not oblivious
+*/
+template<typename Iterator>
+void fisherYatesShuffle(Iterator begin, Iterator end) {
+    size_t N = end - begin;
+    for (size_t n = N - 1; n; --n) {
+        size_t randPos = UniformRandom(n);
+        std::swap(*(begin + randPos), *(--end));
+    }
 }

@@ -11,7 +11,7 @@ using namespace std;
 using K = _OBST::K;
 using V = _OBST::V;
 
-using ORAMClient_t = typename _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,3>;
+using ORAMClient_t = typename _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,4>;
 using OramClient_t = typename _OBST::OramClient::OramClient<ORAMClient_t>;
 using OBST = typename _OBST::OBST::OBST<OramClient_t>;
 using ORAMServer_t = ORAMClient_t::ORAMClientInterface_t;
@@ -19,7 +19,6 @@ using LargeBucket_t = ORAMServer_t::LargeBucket_t;
 using Block_t = ORAMClient_t::Block_t;
 using StashedBlock_t = ORAMClient_t::StashedBlock_t;
 using Bucket_t = ORAMClient_t::Bucket_t;
-using BucketMetadata = Bucket_t::BucketMetadata_t;
 
 TEST(Profiling, Sanity) {
   PROFILER_SET(false);

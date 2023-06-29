@@ -25,7 +25,7 @@
 
 namespace _ORAM::NotORAM::ORAMClient
 {
-  template <typename T = Block::DefaultData_t
+  template <typename T = Block::DefaultBlockData
     , bool ENCRYPT_BLOCKS = ORAM__ENCRYPT_BLOCKS
     , bool NOT_ORAM_ASSERTIONS = true>
   requires true
@@ -57,7 +57,7 @@ namespace _ORAM::NotORAM::ORAMClient
       
       // UNDONE(): This can't be made consteval?
       //
-      static inline Slot DUMMY() { 
+      static INLINE Slot DUMMY() { 
         Slot ret;
         ret.v.Encrypt(Block_t::DUMMY());
         
@@ -96,7 +96,7 @@ namespace _ORAM::NotORAM::ORAMClient
 
     std::vector<Slot> data_;
 
-    explicit ORAMClient(uint64_t N)
+    explicit ORAMClient(uint64_t N, bool noInit = false)
     : N_(N)
     {
       data_ = std::vector(N_, Slot::DUMMY());

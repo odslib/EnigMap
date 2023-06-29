@@ -1,6 +1,8 @@
 #pragma once
 #include <inttypes.h>
+#ifndef ENCLAVE_MODE
 #include <sstream>
+#endif
 #include "common/defs.hpp"
 #include "oram/common/types.hpp"
 #include "oram/common/block.hpp"
@@ -15,7 +17,7 @@ namespace _OBST {
   constexpr inline Dir_t B_RIGHT = 1;
   constexpr inline Dir_t B_BALANCED = 2;
 
-  inline std::string Dir_t_to_string(const Dir_t& t) {
+  INLINE std::string Dir_t_to_string(const Dir_t& t) {
     if (t == B_LEFT) {
       return "B_LEFT";
     }
@@ -37,12 +39,13 @@ namespace _OBST {
     _ORAM::ORAMAddress child[2];
     Dir_t balance;
 
-    inline bool IsBalanced() { return balance == B_BALANCED; }
+    INLINE bool IsBalanced() { return balance == B_BALANCED; }
     auto operator==(const Node &other) const
     {
       return true * (k == other.k) * (v == other.v) * (child[0] == other.child[0]) * (child[1] == other.child[1]) * (balance == other.balance);
     }
 
+    #ifndef ENCLAVE_MODE
     friend std::ostream &operator<<(std::ostream &o, const Node &x)
     {
       // UNDONE(): c++14 libraries with c++20 compiler don't have << working for non string types.
@@ -50,8 +53,9 @@ namespace _OBST {
       o << "(" << std::to_string(x.k) << ", " << std::to_string(x.v) << ", " << x.child[0] << ", " << x.child[1] << "," << Dir_t_to_string(x.balance) <<  ")";
       return o;
     }
+    #endif
 
-    static consteval inline Node DUMMY() { return Node
+    static consteval INLINE Node DUMMY() { return Node
       {
         K{INVALID_KEY},
         V{INVALID_VALUE},

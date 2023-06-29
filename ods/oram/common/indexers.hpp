@@ -13,7 +13,7 @@ namespace _ORAM {
     // 7 8 9 10 11 12 13 14
     // {0} {1} {2} {3} {4} {5} {6} {7}
     template<bool DisableAssertions=false>
-    inline Index GetArrIndex(const Index L, const Position pos, const Index depth) {
+    INLINE Index GetArrIndex(const Index L, const Position pos, const Index depth) {
       if constexpr (!DisableAssertions) {
         Assert(pos != DUMMY_POSITION);
         Assert((pos < (1<<L)));
@@ -33,7 +33,7 @@ namespace _ORAM {
 
     // Returns smallest the distance from the leaf that pos can be on target_path
     //
-    inline Index GetDeepestShallowness(const Index L, const Position pos,  const Position target_path) {
+    INLINE Index GetDeepestShallowness(const Index L, const Position pos,  const Position target_path) {
       if (pos == DUMMY_POSITION) {
         return L+1;
       }
@@ -50,7 +50,7 @@ namespace _ORAM {
       return -1;
     }
 
-    inline void GetPosDepthFromIndex(const Index L, const Index index, Position& pos, Index& depth) {
+    INLINE void GetPosDepthFromIndex(const Index L, const Index index, Position& pos, Index& depth) {
       depth = GetLogBaseTwo(index+1);
       pos = (index - ((1<<(depth))-1)) << (L-depth);
     }
@@ -64,7 +64,7 @@ namespace _ORAM {
     // 5 5 6 6 7 7...
     // ..
     template<unsigned int LEVELS_PER_PACK>
-    inline Index GetHBIndex(const Index L, const Position pos, const Index depth) {
+    INLINE Index GetHBIndex(const Index L, const Position pos, const Index depth) {
       constexpr Index BUCKETS_PER_PACK = (1<<LEVELS_PER_PACK)-1;
       Assert(depth % LEVELS_PER_PACK == 0, "Please use the root instead of ", pos);
       // X_LOG_SIMPLE(NAMED_VALUES(pos, depth, ((-1 + (1<<depth)) / LargeBucket::BUCKETS_PER_PACK), (pos >> (L_ - depth))));
@@ -82,14 +82,14 @@ namespace _ORAM {
     // 3 4 5 6 3 4 5 6 3 4 5 6 3 4 5 6 ...
     // ...
     template<unsigned int LEVELS_PER_PACK>
-    inline Index GetLBIndex(const Index L, const Position pos, const Index depth) {
+    INLINE Index GetLBIndex(const Index L, const Position pos, const Index depth) {
       Index lBDepth = (depth % LEVELS_PER_PACK);
       Index ret = (-1 + (1<<lBDepth)) + (GetArrIndex(L,pos,depth) % (1<<lBDepth));
       return ret;
     }
 
     template<unsigned int LEVELS_PER_PACK>
-    inline void GetBIndexFromArrIndex(const Index L, const Index evictedIndex, Index& rootIdx, Index& innerIdx) {
+    INLINE void GetBIndexFromArrIndex(const Index L, const Index evictedIndex, Index& rootIdx, Index& innerIdx) {
       Index pos, depth;
       GetPosDepthFromIndex(L, evictedIndex, pos, depth);
       Index rootDepth = depth - (depth % LEVELS_PER_PACK);
@@ -99,7 +99,7 @@ namespace _ORAM {
 
     // Informs if two paths still intercept at a given depth 
     template<unsigned int LEVELS_PER_PACK>
-    inline bool PathsIntercept(const Index L, const Position path1, const Position path2, const Index depth) {
+    INLINE bool PathsIntercept(const Index L, const Position path1, const Position path2, const Index depth) {
       return true
       * (path1 != DUMMY_POSITION) 
       * (path2 != DUMMY_POSITION) 

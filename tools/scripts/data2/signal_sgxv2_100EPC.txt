@@ -1,0 +1,112 @@
+Doing ecall
+Initializing signal
+Calling constructor: 256
+Constructor done
+Beginning testTime to init: 2695234465
+Time to test: 652421800
+Average time: 32621
+Test doneInitializing signal
+Calling constructor: 512
+Constructor done
+Beginning testTime to init: 2692622917
+Time to test: 831486416
+Average time: 41574
+Test doneInitializing signal
+Calling constructor: 1024
+Constructor done
+Beginning testTime to init: 2694363961
+Time to test: 1048972458
+Average time: 52448
+Test doneInitializing signal
+Calling constructor: 2048
+Constructor done
+Beginning testTime to init: 2693164747
+Time to test: 1284605684
+Average time: 64230
+Test doneInitializing signal
+Calling constructor: 4096
+Constructor done
+Beginning testTime to init: 2692567761
+Time to test: 1481530188
+Average time: 74076
+Test doneInitializing signal
+Calling constructor: 8192
+Constructor done
+Beginning testTime to init: 2694419643
+Time to test: 1779274800
+Average time: 88963
+Test doneInitializing signal
+Calling constructor: 16384
+Constructor done
+Beginning testTime to init: 2699231173
+Time to test: 2012547272
+Average time: 100627
+Test doneInitializing signal
+Calling constructor: 32768
+Constructor done
+Beginning testTime to init: 2700110619
+Time to test: 2367609554
+Average time: 118380
+Test doneInitializing signal
+Calling constructor: 65536
+Constructor done
+Beginning testTime to init: 2701099483
+Time to test: 2656856611
+Average time: 132842
+Test doneInitializing signal
+Calling constructor: 131072
+Constructor done
+Beginning testTime to init: 2758246161
+Time to test: 3072538058
+Average time: 153626
+Test doneInitializing signal
+Calling constructor: 262144
+Constructor done
+Beginning testTime to init: 2758257202
+Time to test: 3405314167
+Average time: 170265
+Test doneInitializing signal
+Calling constructor: 524288
+Constructor done
+Beginning testTime to init: 2758225182
+Time to test: 3883286931
+Average time: 194164
+Test doneInitializing signal
+Calling constructor: 1048576
+Constructor done
+Beginning testTime to init: 3231443238
+Time to test: 4264363417
+Average time: 213218
+Test doneInitializing signal
+Calling constructor: 2097152
+Constructor done
+Beginning testTime to init: 3233675334
+Time to test: 4810827594
+Average time: 240541
+Test doneInitializing signal
+Calling constructor: 4194304
+Constructor done
+Beginning testTime to init: 3231462752
+Time to test: 5242744509
+Average time: 262137
+Test doneInitializing signal
+Calling constructor: 8388608
+Constructor done
+Beginning testTime to init: 7008873975
+Time to test: 5863909375
+Average time: 293195
+Test doneInitializing signal
+Calling constructor: 16777216
+Constructor done
+Beginning testTime to init: 7005824974
+Time to test: 6369807275
+Average time: 318490
+Test doneInitializing signal
+Calling constructor: 33554432
+Constructor done
+Beginning testTime to init: 7010184557
+Time to test: 7067310689
+Average time: 353365
+Test doneInitializing signal
+Calling constructor: 67108864
+Aborted (core dumped)

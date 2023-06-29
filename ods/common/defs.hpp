@@ -19,7 +19,7 @@
 
 // Info regarding emdas boas packing:
 #ifndef ORAM_SERVER__DIRECTLY_CACHED_LEVELS
-#define ORAM_SERVER__DIRECTLY_CACHED_LEVELS 12
+#define ORAM_SERVER__DIRECTLY_CACHED_LEVELS 16
 #endif
 #ifndef ORAM_SERVER__BUCKET_CACHE_SIZE
 #define ORAM_SERVER__BUCKET_CACHE_SIZE 8192
@@ -29,6 +29,15 @@
 #endif
 #ifndef ORAM_SERVER__LEVELS_PER_PACK
 #define ORAM_SERVER__LEVELS_PER_PACK 4
+#endif
+
+#define ORAM_USE_INRAM_SERVER true
+
+#ifndef ENCLAVE_SIZE
+#define ENCLAVE_SIZE 128
+#endif
+#ifndef DEFAULT_HEAP_SIZE
+#define DEFAULT_HEAP_SIZE ((uint64_t)ENCLAVE_SIZE * 0xE0000UL)
 #endif
 
 // ORAM block size:
