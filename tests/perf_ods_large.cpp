@@ -28,7 +28,7 @@ class PerfOTree : public testing::Test {
 };
 
 typedef ::testing::Types<
-    TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,1,10> >
+    TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,1,10> >
 > TestedTypes;
 
 TYPED_TEST_SUITE(PerfOTree, TestedTypes);

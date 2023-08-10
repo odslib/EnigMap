@@ -1,5 +1,6 @@
 #pragma once
-#include "sort.hpp"
+#include "external_memory/noncachedvector.hpp"
+#include "sort_building_blocks.hpp"
 // NOTE dummy flag is set at the least significant bit in this example
 namespace EM::Algorithm {
 using EM::NonCachedVector::Vector;
@@ -80,22 +81,25 @@ void butterflyRouting(Iterator begin, Iterator end, Iterator outputBegin,
   }
 }
 
-template <typename T>
-Vector<TaggedT<T>> tagAndPad(typename Vector<T>::Iterator begin,
-                             typename Vector<T>::Iterator end, uint64_t Z) {
+template <typename IOIterator,
+          typename T = typename std::iterator_traits<IOIterator>::value_type,
+          typename IOVector = typename std::remove_reference<
+              decltype(*(IOIterator::getNullVector()))>::type>
+Vector<TaggedT<T>, 4096> tagAndPad(IOIterator begin, IOIterator end,
+                                   uint64_t Z) {
   size_t inputSize = end - begin;
-  uint64_t intermidiateSize = GetNextPowerOfTwo(2 * (end - begin));
-  Vector<TaggedT<T>> tv(intermidiateSize);
+  uint64_t intermidiateSize = std::max(GetNextPowerOfTwo(2 * (end - begin)), Z);
+  Vector<TaggedT<T>, 4096> tv(intermidiateSize);
   uint64_t numBucket = intermidiateSize / Z;
   uint64_t numRealPerBucket = divRoundUp(inputSize, numBucket);
-  typename Vector<T>::PrefetchReader inputReader(begin, end);
-  typename Vector<TaggedT<T>>::Writer taggedTWriter(tv.begin(), tv.end());
+  typename IOVector::PrefetchReader inputReader(begin, end);
+  typename Vector<TaggedT<T>, 4096>::Writer taggedTWriter(tv.begin(), tv.end());
 
   for (uint64_t bucketIdx = 0; bucketIdx < numBucket; ++bucketIdx) {
     for (uint64_t offset = 0; offset < Z; ++offset) {
       TaggedT<T> tt;
-      tt.tag =
-          UniformRandom() & -2UL;  // UNDONE: change to a secure rand function
+      tt.tag = UniformRandom() &
+               -2UL;  // dummy flag is set at the least significant bit
       if (offset < numRealPerBucket && !inputReader.eof()) {
         tt.v = inputReader.read();
       } else {
@@ -109,11 +113,11 @@ Vector<TaggedT<T>> tagAndPad(typename Vector<T>::Iterator begin,
 }
 
 template <typename T>
-void externalButterflyRouting(typename Vector<TaggedT<T>>::Iterator begin,
-                              typename Vector<TaggedT<T>>::Iterator end,
-                              typename Vector<TaggedT<T>>::Iterator outputBegin,
-                              size_t Z, uint64_t bitMask,
-                              uint64_t heapSize = DEFAULT_HEAP_SIZE) {
+void externalButterflyRouting(
+    typename Vector<TaggedT<T>, 4096>::Iterator begin,
+    typename Vector<TaggedT<T>, 4096>::Iterator end,
+    typename Vector<TaggedT<T>, 4096>::Iterator outputBegin, size_t Z,
+    uint64_t bitMask, uint64_t heapSize = DEFAULT_HEAP_SIZE) {
   size_t size = end - begin;
   const size_t gamma = GetLogBaseTwo(size);
   if ((size * 2 + gamma * Z) * sizeof(TaggedT<T>) <= heapSize) {
@@ -128,7 +132,7 @@ void externalButterflyRouting(typename Vector<TaggedT<T>>::Iterator begin,
   size_t numBucketPerBatch = 1UL << half_num_layer;
   size_t batchSize = Z * numBucketPerBatch;
   size_t batchCount = size / batchSize;
-  Vector<TaggedT<T>> nextLayer(size);
+  Vector<TaggedT<T>, 4096> nextLayer(size);
   std::vector<TaggedT<T>> temp(Z);
   for (size_t batchIdx = 0; batchIdx < batchCount; ++batchIdx) {
     auto batchBegin = begin + batchIdx * batchSize;
@@ -155,15 +159,17 @@ void externalButterflyRouting(typename Vector<TaggedT<T>>::Iterator begin,
   }
 }
 
-template <class Iterator>
-void CABucketShuffle(Iterator begin, Iterator end,
+template <class IOIterator>
+void CABucketShuffle(IOIterator begin, IOIterator end,
                      uint64_t heapSize = DEFAULT_HEAP_SIZE) {
-  using T = typename std::iterator_traits<Iterator>::value_type;
+  using T = typename std::iterator_traits<IOIterator>::value_type;
+  using IOVector = typename 
+      std::remove_reference<decltype(*(IOIterator::getNullVector()))>::type;
   const uint64_t Z = 512;
-  Vector<TaggedT<T>> tv = tagAndPad<T>(begin, end, Z);
+  Vector<TaggedT<T>, 4096> tv = tagAndPad(begin, end, Z);
   externalButterflyRouting<T>(tv.begin(), tv.end(), tv.begin(), Z, 1UL << 63,
                               heapSize);
-  typename Vector<T>::Writer outputWriter(begin, end);
+  typename IOVector::Writer outputWriter(begin, end, 1);
   std::vector<TaggedT<T>> temp(Z);
   uint64_t prev = 0;
   for (size_t bucketIdx = 0; bucketIdx < tv.size() / Z; ++bucketIdx) {
@@ -182,62 +188,23 @@ void CABucketShuffle(Iterator begin, Iterator end,
   outputWriter.flush();
 }
 
-template <class Iterator>
-void CABucketSort(Iterator begin, Iterator end,
+template <class IOIterator>
+void CABucketSort(IOIterator begin, IOIterator end,
                   uint64_t heapSize = DEFAULT_HEAP_SIZE) {
   CABucketShuffle(begin, end, heapSize);
-  using T = typename std::iterator_traits<Iterator>::value_type;
-  using Reader = typename Vector<T>::LazyPrefetchReader;
-  size_t size = end - begin;
-  Vector<T> batchSorted(size);
-  std::vector<Reader> mergeReaders;
-  size_t batchSize = heapSize / sizeof(T);
-  size_t batchCount = divRoundUp(size, batchSize);
-  mergeReaders.reserve(batchCount);
-  std::vector<T> mem(batchSize);
-  for (size_t batchIdx = 0; batchIdx != batchCount; ++batchIdx) {
-    size_t len = std::min(batchSize, size - batchIdx * batchSize);
-    CopyIn(begin + batchIdx * batchSize, begin + batchIdx * batchSize + len,
-           mem.begin());
-    std::sort(mem.begin(), mem.begin() + len);
-    CopyOut(mem.begin(), mem.begin() + len,
-            batchSorted.begin() + batchIdx * batchSize);
-    mergeReaders.emplace_back(
-        batchSorted.begin() + batchIdx * batchSize,
-        batchSorted.begin() + (batchIdx * batchSize + len));
-  }
-  typename Vector<T>::Writer outputWriter(begin, end, 1);
-  auto cmpmerge = [&](const auto& a, const auto& b) {
-    return *b.second < *a.second;
-  };
-  using Reader = typename Vector<T>::LazyPrefetchReader;
-  std::vector<std::pair<Reader*, T*>> heap;
-  heap.reserve(mergeReaders.size() + 1);
-  for (auto& reader : mergeReaders) {
-    reader.init();
-    heap.push_back({&reader, &reader.get()});
-  }
-  std::make_heap(heap.begin(), heap.end(), cmpmerge);
-  while (!heap.empty()) {
-    Reader* top = heap[0].first;
-    outputWriter.write(top->read());
-    if (!top->eof()) {
-      // add a top at the end, which will be swapped to the top by pop_heap
-      heap.emplace_back(top, &top->get());
-    }
-    std::pop_heap(heap.begin(), heap.end(), cmpmerge);
-    heap.resize(heap.size() - 1);
-  }
-  outputWriter.flush();
+  ExtMergeSort<false>(begin, end, heapSize, 1);
+  // baseline algorithm, does not update counter for authentication here
 }
 
+// due to other overhead, cannot utilize the full capacity of the heap
 template <typename Vec>
-void CABucketSort(Vec& vec, uint64_t heapSize = DEFAULT_HEAP_SIZE) {
+void CABucketSort(Vec& vec, uint64_t heapSize = DEFAULT_HEAP_SIZE * 14 / 15) {
   CABucketSort(vec.begin(), vec.end(), heapSize);
 }
 
 template <typename Vec>
-void CABucketShuffle(Vec& vec, uint64_t heapSize = DEFAULT_HEAP_SIZE) {
+void CABucketShuffle(Vec& vec,
+                     uint64_t heapSize = DEFAULT_HEAP_SIZE * 14 / 15) {
   CABucketShuffle(vec.begin(), vec.end(), heapSize);
 }
 }  // namespace EM::Algorithm

@@ -2,7 +2,7 @@
 <EnclaveConfiguration>
   <ProdID>0</ProdID>
   <ISVSVN>0</ISVSVN>
-  <StackMaxSize>0xF0000</StackMaxSize>
+  <StackMaxSize>0x400000</StackMaxSize>
   <!-- UNDONE(): Minimize this HeadSize based on the enclave requirements. -->
   <HeapMaxSize>0x7A00000</HeapMaxSize>
   <TCSNum>1</TCSNum>

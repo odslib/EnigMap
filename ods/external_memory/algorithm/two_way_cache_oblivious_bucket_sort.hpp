@@ -1,5 +1,6 @@
 #pragma once
-#include "sort.hpp"
+#include "external_memory/noncachedvector.hpp"
+#include "sort_building_blocks.hpp"
 namespace EM::Algorithm {
 using EM::NonCachedVector::Vector;
 template <typename T>

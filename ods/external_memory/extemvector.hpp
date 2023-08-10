@@ -1,8 +1,6 @@
 
 #pragma once
 
-#include "external_memory/server/batchFrontend.hpp"
-#include "external_memory/server/memServer.hpp"
 #include "external_memory/server/serverFrontend.hpp"
 
 // In this file we define a vector that is partially in internal memory
@@ -36,17 +34,10 @@ struct Vector {
   // std::vector<>.
   //
 
-  static constexpr uint64_t page_count = page_size / sizeof(T);
-
-  struct Dim2D {
-    size_t row;
-    size_t col;
-    size_t unit;
-  };
-  std::vector<Dim2D> transposeData;
+  static constexpr uint64_t item_per_page = page_size / sizeof(T);
 
   struct Page {
-    T pages[page_count];
+    T pages[item_per_page];
     using Encrypted_t = std::conditional_t<
         AUTH, FreshEncrypted<Page>,
         std::conditional_t<ENCRYPTED, Encrypted<Page>, NonEncrypted<Page>>>;
@@ -85,39 +76,35 @@ struct Vector {
 
     reference operator*() {
       Assert(m_ptr < vec_ptr->N);
-      // const size_t realIdx = vec_ptr->mapTransposeIdx(m_ptr);
       const size_t realIdx = m_ptr;
-      const size_t pageIdx = realIdx / page_count;
-      const size_t pageOffset = realIdx % page_count;
+      const size_t pageIdx = realIdx / item_per_page;
+      const size_t pageOffset = realIdx % item_per_page;
       return vec_ptr->server.Access(pageIdx).pages[pageOffset];
     }
 
     const_reference operator*() const {
       Assert(m_ptr < vec_ptr->N);
-      // const size_t realIdx = vec_ptr->mapTransposeIdx(m_ptr);
       const size_t realIdx = m_ptr;
-      const size_t pageIdx = realIdx / page_count;
-      const size_t pageOffset = realIdx % page_count;
+      const size_t pageIdx = realIdx / item_per_page;
+      const size_t pageOffset = realIdx % item_per_page;
       return vec_ptr->server.AccessReadOnly(pageIdx).pages[pageOffset];
     }
 
     // don't write back the page
     const_reference derefNoWriteBack() const {
       Assert(m_ptr < vec_ptr->N);
-      // const size_t realIdx = vec_ptr->mapTransposeIdx(m_ptr);
       const size_t realIdx = m_ptr;
-      const size_t pageIdx = realIdx / page_count;
-      const size_t pageOffset = realIdx % page_count;
+      const size_t pageIdx = realIdx / item_per_page;
+      const size_t pageOffset = realIdx % item_per_page;
       return vec_ptr->server.AccessNoWriteBack(pageIdx).pages[pageOffset];
     }
 
     // always skip read page
     reference derefWriteOnly() {
       Assert(m_ptr < vec_ptr->N);
-      // const size_t realIdx = vec_ptr->mapTransposeIdx(m_ptr);
       const size_t realIdx = m_ptr;
-      const size_t pageIdx = realIdx / page_count;
-      const size_t pageOffset = realIdx % page_count;
+      const size_t pageIdx = realIdx / item_per_page;
+      const size_t pageOffset = realIdx % item_per_page;
       return vec_ptr->server.AccessWriteOnly(pageIdx).pages[pageOffset];
     }
 
@@ -150,11 +137,13 @@ struct Vector {
       return tmp;
     }
 
-    page_idx_type get_page_idx() const { return m_ptr / page_count; }
+    page_idx_type get_page_idx() const { return m_ptr / item_per_page; }
 
-    page_offset_type get_page_offset() const { return m_ptr % page_count; }
+    page_offset_type get_page_offset() const { return m_ptr % item_per_page; }
 
     auto& getVector() { return *vec_ptr; }
+
+    static Vector* getNullVector() { return NULL; }
 
     friend bool operator==(const Iterator& a, const Iterator& b) {
       return a.m_ptr == b.m_ptr;
@@ -187,10 +176,10 @@ struct Vector {
   // default:
   explicit Vector(uint64_t N_ = 0, typename Server::BackendType& _backend =
                                        *Backend::g_DefaultBackend)
-      : N(N_), server(_backend, N_ / page_count + 1, makeDefaultPage()) {}
+      : N(N_), server(_backend, N_ / item_per_page + 1, makeDefaultPage()) {}
   // explicit Vector(uint64_t N_=0, typename Server::BackendType&
   // _backend=*Backend::g_DefaultBackend) : N(N_), server(_backend,
-  // N_/page_count+1) { } fill:
+  // N_/item_per_page+1) { } fill:
   Page makeDefaultPage() {
     // UNDONE(): Make T::DUMMY() a template function so it supports
     // DUMMY<int>().
@@ -200,19 +189,19 @@ struct Vector {
   }
   Page makeDefaultPage(const T& defaultVal) {
     Page defaultPage;
-    std::fill_n(defaultPage.pages, page_count, defaultVal);
+    std::fill_n(defaultPage.pages, item_per_page, defaultVal);
     return defaultPage;
   }
   Vector(uint64_t N_, const T& defaultVal,
          typename Server::BackendType& _backend = *Backend::g_DefaultBackend)
       : N(N_),
-        server(_backend, N_ / page_count + 1, makeDefaultPage(defaultVal)) {}
+        server(_backend, N_ / item_per_page + 1, makeDefaultPage(defaultVal)) {}
   // UNDONE: range and copy.
 
   Vector(Iterator begin, Iterator end,
          typename Server::BackendType& _backend = *Backend::g_DefaultBackend)
       : N(end - begin),
-        server(_backend, (end - begin) / page_count + 1, makeDefaultPage()) {
+        server(_backend, (end - begin) / item_per_page + 1, makeDefaultPage()) {
     auto outIt = Iterator(0, *this);
     std::copy(begin, end, outIt);
   }
@@ -236,29 +225,6 @@ struct Vector {
   void LRUTouch(uint64_t index) {
     // UNDONE(): touches the given index in the LRU cache.
     //
-  }
-
-  void logicalTranspose(size_t row, size_t col) {
-#ifndef NDEBUG
-    Assert(N % (row * col) == 0);
-#endif
-    std::reverse(transposeData.begin(), transposeData.end());
-    transposeData.push_back({row, col, N / (row * col)});
-    std::reverse(transposeData.begin(), transposeData.end());
-  }
-
-  inline size_t mapTransposeIdx(size_t idx) const {
-    PROFILE_F();
-    for (const Dim2D& dim : transposeData) {
-      const size_t bucketIdx = idx / dim.unit;
-      const size_t offset = idx % dim.unit;
-      const size_t rowIdx = bucketIdx / dim.col;
-      const size_t colIdx = bucketIdx % dim.col;
-      const size_t newBucketIdx = colIdx * dim.row + rowIdx;
-      idx = newBucketIdx * dim.unit + offset;
-    }
-
-    return idx;
   }
 
   struct Reader {

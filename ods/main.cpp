@@ -1,10 +1,10 @@
 #include "otree/otree.hpp"
-#include "oram/ringoram/oram.hpp"
+#include "oram/pathoram/oram.hpp"
 #include <cassert>
 #include <iostream>
 
 int main() {
-  using ORAMClient = _ORAM::RingORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,ORAM__S,false,false>;
+  using ORAMClient = _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,4>;
   using OramClient = _OBST::OramClient::OramClient<ORAMClient>;
   _OBST::OBST::OBST<OramClient> x(4);
   x.Insert(0, 32);

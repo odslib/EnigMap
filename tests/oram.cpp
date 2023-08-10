@@ -23,7 +23,7 @@ TYPED_TEST_SUITE_P(TestORAM);
 
 TYPED_TEST_P(TestORAM, BasicAssertions) {
   TTHEADER();
-  ORAMClient_t client{10};
+  ORAMClient_t client{sz};
   _ORAM::ORAMAddress addr = _ORAM::ORAMAddress{0,0};
   Block_t r;
   r.data = 1;
@@ -133,6 +133,47 @@ TYPED_TEST_P(TestORAM, BasicAssertion3) {
       ASSERT_EQ(r.data, vals[addr.address]);
     }
   }
+}
+
+TYPED_TEST_P(TestORAM, Bug1) {
+  TTHEADER();
+  ORAMClient_t client{17};
+  std::map<_ORAM::Index, uint64_t> vals;
+  std::map<_ORAM::Index, _ORAM::Position> positions;
+  
+  #define FIS(isNew,Addr,pos,newPos,val) { \
+    _ORAM::ORAMAddress addr{Addr, pos}; \
+    Block_t r; \
+    cout << "Addr=" << addr.address << " (" <<  ", pos=" << addr.position << ", newPos=" << newPos << ")" << endl; \
+    if constexpr (isNew) { \
+      client.ForceIntoStash(addr, /*cached=*/ false); \
+      client.FinishAccess(); \
+      positions[addr.address] = addr.position; \
+      vals[addr.address] = uint64_t{val}; \
+    } \
+    addr.position = positions[addr.address]; \
+    positions[addr.address] = newPos; \
+    client.BeginAccess(addr, newPos, r); \
+    if (!isNew) { \
+      ASSERT_EQ(r.data, vals[addr.address]); \
+    } \
+    r.data = val; \
+    vals[addr.address] = val; \
+    client.WriteToSomeStashedBlock(addr.address, r); \
+    ASSERT_EQ(r.data, vals[addr.address]); \
+    client.FinishAccess(); \
+    ASSERT_EQ(r.data, vals[addr.address]); \
+  }
+
+  FIS(true, 1, 9, 10, 100);
+  FIS(true, 2, 3, 15, 200);
+  FIS(true, 3, 5, 11, 300);
+  FIS(false, 3, 11, 3, 400);
+  FIS(true, 4, 13, 5, 500);
+  FIS(false, 1, 10, 1, 600);
+  FIS(true, 5, 16, 1, 700);
+  FIS(true, 6, 14, 10, 800);
+  FIS(false, 5, 1, 2, 900);
 }
 
 TYPED_TEST_P(TestORAM, BasicAssertionRepetitive) {
@@ -258,14 +299,21 @@ typedef ::testing::Types<
   , TestParameter<_ORAM::RingORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,ORAM__S,false,false,4>, BASE+1>
   , TestParameter<_ORAM::RingORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,ORAM__S,false,false,4>, BASE+2>
 
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>, 17>
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4,12,true>, 17>
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>, BASE-2>
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>, BASE-1>
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>, BASE>
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>, BASE+1>
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>, BASE+2>
-
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, 17>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4,12,true>, 17>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE-2>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE-1>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE+1>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE+2>
+  
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, 17>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4,12,true>, 17>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE-2>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE-1>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE+1>
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>, BASE+2>
 > TestedTypes;
 
 REGISTER_TYPED_TEST_SUITE_P(
@@ -273,6 +321,7 @@ REGISTER_TYPED_TEST_SUITE_P(
   BasicAssertions,
   BasicAssertion2,
   BasicAssertion3,
+  Bug1,
   BasicAssertionRepetitive,
   DeathTestOOBOldPositionBeginAccess,
   DeathTestOOBAddressBeginAccess,

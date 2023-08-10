@@ -72,6 +72,7 @@
       std::cerr << "Installing signal handler" << std::endl;
       ::signal(SIGSEGV, &print_stacktrace);
       ::signal(SIGABRT, &print_stacktrace);
+      ::signal(SIGFPE, &print_stacktrace);
     }
 
     OnExitHandlerInstaller() {

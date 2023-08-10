@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "common/dmcache.hpp"
+#include "common/encrypted.hpp"
 #include "common/lrucache.hpp"
 #include "common/tracing/tracer.hpp"
 #include "common/utils.hpp"
@@ -14,7 +15,7 @@ namespace EM {
 namespace MemoryServer {
 
 template <typename T, typename _BackendType = ::EM::Backend::MemServerBackend,
-          bool ENCRYPTED = true, bool AUTH = true, bool LATE_INIT = true>
+          bool ENCRYPTED = true, bool AUTH = true, bool LATE_INIT = false>
 // #ifndef ENCLAVE_MODE
 // requires EM::Backend::BackendServer<BackendType>
 // #endif
@@ -90,7 +91,14 @@ struct NonCachedServerFrontendInstance {
   }
 
   NonCachedServerFrontendInstance(BackendType& _backend, uint64_t initialSize)
-      : NonCachedServerFrontendInstance(_backend, initialSize, T()) {}
+      : backend(_backend) {
+    IndexType requiredSize = initialSize * sizeOfT;
+    slot = backend.Allocate(requiredSize);
+    if constexpr (AUTH) {
+      nounce.identifiers.indexPart = UniformRandom();
+      nounce.identifiers.counterPart = UniformRandom32();
+    }
+  }
 
   ~NonCachedServerFrontendInstance() {
     if (slot.base == -1) {

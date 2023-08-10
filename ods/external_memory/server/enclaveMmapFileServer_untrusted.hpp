@@ -1,44 +1,50 @@
 #pragma once
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <cinttypes>
+#include <cstring>
 #include <fstream>
+#include <iostream>
 
 #include "common/cpp_extended.hpp"
 
 #define DEFAULT_FILENAME "/ssdmount/storage.bin"
 
 static uint64_t N;
-static std::unique_ptr<std::fstream> lbios(nullptr);
-
+int fd;
+uint8_t* data;
 uint8_t* ocall_InitServer(uint64_t sizeOfT, uint64_t N_) {
-  // printf("init file server\n");
-  lbios.reset(new std::fstream());
   N = N_;
-  lbios->open(DEFAULT_FILENAME, std::fstream::in | std::fstream::out |
-                                    std::fstream::binary | std::fstream::trunc);
-  Assert(lbios->is_open());
-  // for (uint64_t i = 0; i < N; i++) {
-  //   uint8_t zeros[sizeOfT];
-  //   memset(zeros, 0, sizeOfT);
-  //   lbios->write((char*)zeros, sizeOfT);
-  // }
-  // Assert(lbios->is_open());
-  // lbios->flush();
-  X_LOG("ORAMClientInterface: Done allocating file (", lbios->tellp(),
-        " bytes written)");
+  int fd = open(DEFAULT_FILENAME, O_RDWR | O_CREAT | O_TRUNC, 0644);
+  int allocRes = fallocate64(fd, 0, 0, N * sizeOfT);
+  if (allocRes != 0) {
+    std::cerr << "Error allocating space for the file." << std::endl;
+    close(fd);
+    return NULL;
+  }
+  if (fd == -1) {
+    std::cerr << "Error opening file for writing." << std::endl;
+    return NULL;
+  }
+  data = static_cast<uint8_t*>(
+      mmap(nullptr, N * sizeOfT, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+  if (data == MAP_FAILED) {
+    std::cerr << "Error memory mapping the file." << std::endl;
+    close(fd);
+    return NULL;
+  }
   return NULL;
 }
 
 void ocall_Read(size_t pos, uint64_t length, uint8_t* page) {
-  Assert(length <= 4096);
-  std::streampos filePos = pos;
-  lbios->seekg(filePos);
-  lbios->read((char*)page, length);
+  std::memcpy(page, data + pos, length);
 }
 
 void ocall_Write(uint64_t pos, uint64_t length, const uint8_t* page) {
-  std::streampos filePos = pos;
-  lbios->seekp(filePos);
-  lbios->write((char*)page, length);
+  std::memcpy(data + pos, page, length);
 }
 
 uint64_t compressChunks(uint64_t* offsets, uint64_t* sizes, uint64_t chunkNum) {
@@ -85,4 +91,9 @@ void ocall_Write_Batch(uint64_t* offsets, uint64_t* sizes, uint8_t* tmp,
   }
 }
 
-void ocall_DeleteServer() { lbios->close(); }
+void ocall_DeleteServer() {
+  if (munmap(data, N) == -1) {
+    std::cerr << "Error unmapping the file." << std::endl;
+  }
+  close(fd);
+}

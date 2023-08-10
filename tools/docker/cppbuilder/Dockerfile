@@ -13,7 +13,7 @@ RUN apt update -y && apt upgrade -y \
 && apt install -y python3-matplotlib python3-numpy \
 && apt install -y libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev \
         debhelper cmake reprepro unzip pkgconf libboost-dev libboost-system-dev libboost-thread-dev \
-        protobuf-c-compiler libprotobuf-c-dev lsb-release libsystemd0 \
+        protobuf-c-compiler libprotobuf-c-dev lsb-release libsystemd0 bc \
 && rm -rf /var/lib/apt/lists/*
 
 RUN pip install cppcheck-codequality

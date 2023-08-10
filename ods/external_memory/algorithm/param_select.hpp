@@ -2,9 +2,11 @@
 #include <cmath>
 #include <vector>
 
-#include "block_for_sort.hpp"
+#include "sort_def.hpp"
 
 namespace EM::Algorithm {
+
+/// @brief add two numbers in log space
 static double addLogs(double logA, double logB) {
   double bigger = std::max(logA, logB);
   double smaller = std::min(logA, logB);
@@ -17,15 +19,7 @@ static double addLogs(double logA, double logB) {
   return bigger + log2(1.0 + pow(2, (smaller - bigger)));
 }
 
-enum BOUND_TYPE { EXACT, UPPER, LOWER };
-
-static double binary_entropy(double p) {
-  Assert(0 < p);
-  Assert(p < 1);
-  return -p * log2(p) - (1 - p) * log2(1 - p);
-}
-
-template <BOUND_TYPE type = EXACT>
+/// @brief log of the binomial coefficient
 static double logCombin(uint64_t k, uint64_t n) {
   Assert(k <= n);
   if (k * 2 > n) {
@@ -36,9 +30,9 @@ static double logCombin(uint64_t k, uint64_t n) {
   return res;
 }
 
-template <BOUND_TYPE type = EXACT>
+/// @brief log of the binomial pmf
 static double binomLogPmf(uint64_t k, uint64_t n, double p) {
-  double logCkn = logCombin<type>(k, n);
+  double logCkn = logCombin(k, n);
 
   if (p > 1e-5) {
     return logCkn + k * log2(p) + (n - k) * log2(1 - p);
@@ -47,10 +41,10 @@ static double binomLogPmf(uint64_t k, uint64_t n, double p) {
          (n - k) / log(2) * (p + p * p / 2 + p * p * p / 3);
 }
 
-template <BOUND_TYPE type = EXACT>
+/// @brief log of the binomial survival function
 static double binomLogSf(uint64_t k, uint64_t n, double p) {
   double sf = -INFINITY;
-  double pmf = binomLogPmf<type>(k, n, p);
+  double pmf = binomLogPmf(k, n, p);
   double eps = pmf - 40;
   while (pmf > eps && k < n) {
     ++k;
@@ -60,10 +54,10 @@ static double binomLogSf(uint64_t k, uint64_t n, double p) {
   return sf;
 }
 
-template <BOUND_TYPE type = EXACT>
+/// @brief log of the binomial cdf
 static double binomLogCdf(uint64_t k, uint64_t n, double p) {
   double sf = -INFINITY;
-  double pmf = binomLogPmf<type>(k, n, p);
+  double pmf = binomLogPmf(k, n, p);
   double eps = pmf - 40;
   while (pmf > eps) {
     sf = addLogs(sf, pmf);
@@ -76,15 +70,15 @@ static double binomLogCdf(uint64_t k, uint64_t n, double p) {
   return sf;
 }
 
-template <BOUND_TYPE type = EXACT>
+/// @brief log of the hypergeometric pmf
 static double hypergeomLogPmf(uint64_t k, uint64_t M, uint64_t n, uint64_t N) {
   Assert(N <= M);
   if (k > N || k > n) {
     return -INFINITY;
   }
 
-  double logCkn = logCombin<type>(k, n);
-  double logCN_kM_n = logCombin<type>(N - k, M - n);
+  double logCkn = logCombin(k, n);
+  double logCN_kM_n = logCombin(N - k, M - n);
   static size_t cachedM = 0;
   static size_t cachedN = 0;
   static size_t cachedLogMN = 0;
@@ -92,14 +86,7 @@ static double hypergeomLogPmf(uint64_t k, uint64_t M, uint64_t n, uint64_t N) {
   if (M == cachedM && N == cachedN) {
     logCMN = cachedLogMN;
   } else {
-    if constexpr (type == EXACT) {
-      logCMN = logCombin<EXACT>(N, M);
-    } else if constexpr (type == LOWER) {
-      logCMN = logCombin<UPPER>(N, M);
-    } else {
-      logCMN = logCombin<LOWER>(
-          N, M);  // could change to exact here to get a tigher bound
-    }
+    logCMN = logCombin(N, M);
     cachedM = M;
     cachedN = N;
     cachedLogMN = logCMN;
@@ -107,10 +94,10 @@ static double hypergeomLogPmf(uint64_t k, uint64_t M, uint64_t n, uint64_t N) {
   return logCkn + logCN_kM_n - logCMN;
 }
 
-template <BOUND_TYPE type = EXACT>
+/// @brief log of the hypergeometric survival function
 static double hypergeomLogSf(uint64_t k, uint64_t M, uint64_t n, uint64_t N) {
   double sf = -INFINITY;
-  double pmf = hypergeomLogPmf<type>(k, M, n, N);
+  double pmf = hypergeomLogPmf(k, M, n, N);
   double eps = pmf - 40;
   while (pmf > eps && k < n) {
     ++k;
@@ -121,62 +108,15 @@ static double hypergeomLogSf(uint64_t k, uint64_t M, uint64_t n, uint64_t N) {
   return sf;
 }
 
-static size_t getBucketCount(size_t Z, size_t N) {
-  return GetNextPowerOfTwo((N + Z - 1) / Z);
-}
-
-static double failureProbBucketSort(size_t Z, size_t N, size_t numTotalBucket) {
-  size_t NTotal = numTotalBucket * Z;
-  double failProb = -INFINITY;
-  size_t numRealPerBucket = (N - 1) / numTotalBucket + 1;
-  for (size_t numBucket = numTotalBucket; numBucket >= 2; numBucket /= 2) {
-    size_t n = numRealPerBucket * numBucket;  // num real on first level
-    if (Z >= n) {
-      break;
-    }
-    double p = 1.0 / numBucket;
-    double bucketFailProb = binomLogSf(Z, n, p);
-    double layerFailProb = log2(numTotalBucket) + bucketFailProb;
-    failProb = addLogs(failProb, layerFailProb);
-  }
-  return failProb;
-}
-
-static double failureProbBucketSort(size_t Z, size_t N) {
-  size_t numTotalBucket = getBucketCount(Z, N);
-  return failureProbBucketSort(Z, N, numTotalBucket);
-}
-
-/** Z: bucket size (ine element)
-N: total number of real elements
-M: number of elements that can fit into memory
-return IO cost, unit is amortized cost to read/write one element
-*/
-static double IOCostBucketSort(size_t Z, size_t N, size_t M) {
-  size_t numTotalBucket = getBucketCount(Z, N);
-  M -= Z * 2;  // since we copy two buckets to temp every time
-  size_t numLayerButterfly = ceil(log2(numTotalBucket) / floor(log2(M / Z)));
-  if (numLayerButterfly < 2) {
-    numLayerButterfly = 2;
-  }
-  size_t numLayerMerge = 2;
-  size_t cost =
-      numTotalBucket * Z * (numLayerButterfly - 1) + N * numLayerMerge;
-  return cost * 2;
-}
-
-/**
-return computation cost, unit is number of obli swaps
-*/
-static double ComputeCostBucketSort(size_t Z, size_t N) {
-  size_t numTotalBucket = getBucketCount(Z, N);
-  double logZ = log2(Z);
-  size_t numLevelButterfly = GetLogBaseTwo(numTotalBucket);
-  size_t cost = numTotalBucket * (numLevelButterfly * 0.5 * Z * logZ +
-                                  0.25 * Z * logZ * (logZ + 1));
-  return cost;
-}
-
+/// @brief calculate lower bound
+/// @tparam T type of the value
+/// @tparam type of the lambda function
+/// @param left left bound
+/// @param right right bound
+/// @param satisfy lambda function that checks the condition
+/// @param prec precision
+/// @return the smallest value in the range [left, right) that satisfies the
+/// condition
 template <typename T, class Check>
 static T lowerBound(T left, T right, const Check& satisfy, T prec = 1) {
   while (true) {
@@ -195,367 +135,110 @@ static T lowerBound(T left, T right, const Check& satisfy, T prec = 1) {
   }
 }
 
-template <typename T, class Target>
-static T convexMinimize(T left, T right, const Target& target, T prec) {
-  Assert(prec * 2 < right - left) T curr = (left + right) / 2;
-  T step = (right - left) / 4;
-  while (true) {
-    if (curr + prec > right || curr - prec < left) {
-      return curr;
-    }
-    if (target(curr + prec) < target(curr - prec)) {
-      curr += step;
-    } else {
-      curr -= step;
-    }
-    step /= 2;
-    if (step <= prec) {
+/// @brief calculate failure probability of flex-way butterfly sort
+/// @param Z bucket size
+/// @param N number of real elements
+/// @param numTotalBucket number of total buckets
+/// @return log of the failure probability
+static double failureProbButterflySort(size_t Z, size_t N,
+                                       size_t numTotalBucket) {
+  size_t NTotal = numTotalBucket * Z;
+  double failProb = -INFINITY;
+  size_t numRealPerBucket = (N - 1) / numTotalBucket + 1;
+  for (size_t numBucket = numTotalBucket; numBucket >= 2; numBucket /= 2) {
+    size_t n = numRealPerBucket * numBucket;  // num real on first level
+    if (Z >= n) {
       break;
     }
+    double p = 1.0 / numBucket;
+    double bucketFailProb = binomLogSf(Z, n, p);
+    double layerFailProb = log2(numTotalBucket) + bucketFailProb;
+    failProb = addLogs(failProb, layerFailProb);
   }
-  return curr;
+  return failProb;
 }
 
-static double IOCostOQSort(size_t N, size_t M, size_t layer,
-                           double recursive_ratio, double eps) {
-  return N * (1 + recursive_ratio) *
-         (2 * layer * (1 + eps) + 3 + recursive_ratio);
-}
-
-static double ComputeCostOQSort(size_t N, size_t M, size_t layer,
-                                double recursive_ratio, double eps) {
-  size_t numTotalPart = divRoundUp(N * (1 + eps), M);
-  M = divRoundUp(N * (1 + eps), numTotalPart);
-  double logM = log2(M);
-  double avgRealPerM = M / (1 + eps);
-  double logAvgRealPerM = log2(M);
-  size_t way = ceil(pow(numTotalPart, 1.0 / layer));
-  double logWay = log2(way);
-  size_t cost =
-      (1 + recursive_ratio) * numTotalPart *
-      (layer * 0.5 * M * (logM - logWay / 2) * logWay + 0.5 * M * logM +
-       0.25 * avgRealPerM * logAvgRealPerM * (logAvgRealPerM + 1));
-  return cost;
-}
-
-static double TotalCostOQSort(size_t N, size_t M, size_t layer,
-                              double recursive_ratio, double eps) {
-  double ioCost = IOCostOQSort(N, M, layer, recursive_ratio, eps);
-  double computeCost = ComputeCostOQSort(N, M, layer, recursive_ratio, eps);
-  return ioCost * 10 + computeCost;
-}
-
-static double ComputeCostDistriOSort(size_t Z, size_t N, size_t layer,
-                                     double recursive_ratio) {
-  size_t numTotalBucket = getBucketCount(Z, N);
-  size_t total = numTotalBucket * Z;
-  size_t M = total >> layer;
-  size_t avgReal = N >> layer;
-  size_t cost = (1 + recursive_ratio) *
-                (total * layer * 0.5 * log2(Z) + 0.5 * total * log2(M) +
-                 0.25 * N * log2(avgReal) * (log2(avgReal) + 1));
-  return cost;
-}
-
-static double IOCostDistriOSort(size_t Z, size_t N, size_t M,
-                                double recursive_ratio) {
-  size_t numTotalBucket = getBucketCount(Z, N);
-  M -= Z * 2;  // since we copy two buckets to temp every time
-  size_t numLayerButterfly = ceil(log2(numTotalBucket) / floor(log2(M / Z)));
-  if (numLayerButterfly < 2) {
-    numLayerButterfly = 2;
-  }
-  size_t cost = 2 * numTotalBucket * Z * (numLayerButterfly - 1) +
-                N * (3 + recursive_ratio);
-  return cost * (1 + recursive_ratio);
-}
-
-static double TotalCostDistriOSort(size_t Z, size_t N, size_t M, size_t layer,
-                                   double recursive_ratio) {
-  double ioCost = IOCostDistriOSort(Z, N, M, recursive_ratio);
-  double computeCost = ComputeCostDistriOSort(Z, N, layer, recursive_ratio);
-  return ioCost * 10 + computeCost;
-}
-
-struct OQSortParams {
-  double alpha;
-  double slack_sampling;
-  double eps;
-  size_t p_max;
-  size_t M;
-  size_t layer;
-};
-
-struct DistriOSortParams {
-  double alpha;
-  double slack_sampling;
-  double eps;
-  size_t Z;
-  size_t layer;
-};
-
-static double logP_t1_data_between_pivots(size_t total, double sampleratio,
-                                          double p, size_t t1) {
-  // P[max(element between any two pivots) = t1]
-  // <= P[there exist two pivots sandwiching t1 elements]
-  // <= P[there exists a consecutive chunk of t1-1 elements where
-  // total*sampleratio/p elements are sampled]
-  // <= 2^prob
-  double prob = binomLogPmf<UPPER>(ceil(total * sampleratio / p) - 1, t1 - 1,
-                                   sampleratio) +
-                log2(total) + 2 * log2(sampleratio);
-  return std::min(0.0, prob);
-}
-
-static double logP_more_than_t1_data_between_pivots(size_t total,
-                                                    double sampleratio,
-                                                    double p, size_t t1) {
-  // P[max(element between any two pivots) >= t1]
-  // <= P[exists a consecutive chunk of t1 elements at most total*sampleratio/p
-  // elements are sampled]
-  // <= 2^prob
-  double prob =
-      binomLogCdf<UPPER>(ceil(total * sampleratio / p), t1, sampleratio) +
-      log2(total);
-  return std::min(0.0, prob);
-}
-
-static double logP_Overflow_when_t1_data_between_pivots(size_t total, double p,
-                                                        double eps, size_t t1,
-                                                        size_t B) {
-  // P[overflow | (max(element between any two pivots) = t1)]
-  // <= P[overflow | (element between any two pivots = t1)]  (i.e. replacing
-  // fillers with real elements only increases failure probability)
-  // <= 2^prob
-  double prob = hypergeomLogSf<UPPER>(int(B * (1 + eps)), total, t1, B * p) +
-                log2(total / B);
-  return std::min(0.0, prob);
-}
-
-static bool withinFailureProbOQPartition(size_t N, size_t M, size_t layer,
-                                         double alpha, double eps,
-                                         size_t maxFinalPartSize,
-                                         double target = -60) {
-  size_t logTotal = ceil(log2(N));
-  size_t numTotalPart = divRoundUp(N * (1 + eps), maxFinalPartSize);
-  // M = divRoundUp(N * (1+eps), numTotalPart);
-  size_t way = ceil(pow(numTotalPart, 1.0 / layer));
-  numTotalPart =
-      divRoundUp(numTotalPart, pow(way, layer - 1)) * pow(way, layer - 1);
-
-  // printf("numTotalPart=%ld, layer=%ld, way %ld\n", numTotalPart, layer, way);
-  double logWay = log2(way);
-  size_t p = numTotalPart;
-  double q = -INFINITY;
-  for (size_t lyr = 0; lyr < layer; ++lyr) {
-    Assert(p > 1);
-    // num real element per bucket on the first layer
-    // N / (number of batches * bucket per batch)
-    size_t B = divRoundUp(N, divRoundUp(N * (1 + eps), M) * std::min(way, p));
-    // printf("B = %ld\n", B);
-
-    auto satisfy_start = [&](int64_t negt1) {
-      return logP_Overflow_when_t1_data_between_pivots(N, p, eps, -negt1, B) <
-             target - layer - 3;
+/// @brief judge whether the failure probability of flex-way butterfly sort is
+/// within the target
+/// @param Z bucket size
+/// @param N number of real elements
+/// @param B granularity of preshuffling
+/// @param numTotalBucket number of total buckets
+/// @param pMax maximum number of partition
+/// @param sampleRatio sampling rate
+/// @param target target failure probability in log scale
+/// @return whether the failure probability is within the target
+static bool failureProbKWayDistriSortWithinTarget(size_t Z, size_t N, size_t B,
+                                                  size_t numTotalBucket,
+                                                  size_t pMax,
+                                                  double sampleRatio,
+                                                  double target = -60) {
+  size_t NTotal = numTotalBucket * Z;
+  double failProb = -INFINITY;
+  size_t numRealPerBucket = (N - 1) / numTotalBucket + 1;
+  size_t layer = log2(numTotalBucket);
+  for (size_t numBucket = pMax; numBucket >= 2; numBucket /= 2) {
+    size_t n = numRealPerBucket * numBucket;  // num real on first level
+    if (Z >= n) {
+      break;
+    }
+    auto not_satisfy_start = [&](uint64_t t1) {
+      double probOverflow = hypergeomLogSf(Z / B, N / B, t1 / B, n / B);
+      double probAnyOverflow = probOverflow + log2(numBucket);
+      return probAnyOverflow >= target - layer - 3;
     };
-    size_t t1_start = -lowerBound(-(int64_t)(N * (1 + eps) / p),
-                                  -(int64_t)(N / p), satisfy_start);
-    // printf("t1_start = %ld\n", t1_start);
+    size_t t1_start =
+        lowerBound(N / numBucket, NTotal / numBucket, not_satisfy_start) - 1;
 
     auto satisfy_end = [&](int64_t t1) {
-      return logP_more_than_t1_data_between_pivots(N, alpha, p, t1) <
-             target - layer - 3;
+      double probMoreThanT1BtwPivots =
+          binomLogCdf(ceil(N * sampleRatio / numBucket), t1 - 1, sampleRatio) +
+          log2(N);
+      // probability that the number of elements between any two
+      // pivots are more than t1
+      double probMoreThanT1BtwAnyPivots =
+          probMoreThanT1BtwPivots + log2(numBucket);
+      return probMoreThanT1BtwAnyPivots < target - layer - 3;
     };
-    size_t t1_end =
-        lowerBound((int64_t)(N / p), (int64_t)(N * (1 + eps) / p), satisfy_end);
-    // printf("t1_end = %ld\n", t1_end);
+    size_t t1_end = lowerBound(N / numBucket, NTotal / numBucket, satisfy_end);
     if (t1_start >= t1_end) {
       t1_start = t1_end = (t1_start + t1_end) / 2;
     }
 
     // add failure prob on two ends
-    double qLayer =
-        logP_Overflow_when_t1_data_between_pivots(N, p, eps, t1_start - 1, B);
-    qLayer = addLogs(
-        qLayer, logP_more_than_t1_data_between_pivots(N, alpha, p, t1_end));
+    // either end < target -layer - 3
+    double qLayer = target - layer - 2;
 
     size_t step = std::max(1UL, (t1_end - t1_start) / 100);
     for (size_t t1 = t1_start; t1 < t1_end; t1 += step) {
-      double qi = logP_t1_data_between_pivots(N, alpha, p, t1);
-      double qj =
-          logP_Overflow_when_t1_data_between_pivots(N, p, eps, t1 + step, B);
-      qLayer = addLogs(qLayer, qi + qj + log2(std::min(step, t1_end - t1)));
+      // P[max(element between any two pivots) = t1]
+      // <= P[there exist two pivots sandwiching t1 elements]
+      // <= P[there exists a consecutive chunk of t1-1 elements where
+      // total*sampleratio/numbucket elements are sampled and both ends are
+      // sampled]
+      // <= 2^prob
+      double qi = binomLogPmf(ceil(N * sampleRatio / numBucket) - 1, t1 - 1,
+                              sampleRatio) +
+                  log2(sampleRatio);
+      double qj = hypergeomLogSf(Z / B, N / B, (t1 + step) / B, n / B);
+      qLayer = addLogs(qLayer, qi + qj + log2(numBucket) +
+                                   log2(std::min(step, t1_end - t1)));
     }
     // qLayer += log2(log2(std::min(way, p)));
-    q = addLogs(q, qLayer);
-    if (q > target) {
+    failProb = addLogs(failProb, qLayer);
+    if (failProb > target) {
       return false;
     }
-    double ub = addLogs(q, qLayer + log2(layer - lyr - 1));
+    double ub = addLogs(failProb, qLayer + log2(numBucket / 2));
     if (ub < target) {
       return true;
     }
-    p /= way;
   }
-  return q < target;
+
+  return failProb < target;
 }
 
-static DistriOSortParams bestDistriOSortParams(size_t N, size_t M,
-                                               double target = -60) {
-  DistriOSortParams params = {};
-  double bestCost = INFINITY;
-  for (double alpha = 0.02; alpha <= 0.1; alpha += 0.01) {
-    size_t k = 128;
-    size_t Z;
-    auto samplingSatisify = [&](double slack) {
-      return binomLogSf<UPPER>(slack * M * alpha, M, alpha) +
-                 log2(divRoundUp(N, M)) <
-             target - 4;
-    };
-    static const double slack_sampling_prec = 1e-4;
-    double slack_sampling =
-        lowerBound(1.0, 1.5, samplingSatisify, slack_sampling_prec);
-    for (;; k *= 2) {
-      Z = (N - 1) / getBucketCount(k, N) / 2 * 2;
-      size_t numBucket = getBucketCount(Z, N);
-      size_t numBucketFit = 1UL << GetLogBaseTwo(M / Z);
-      double eps = double(Z * numBucket) / N - 1;
-      size_t layer = GetLogBaseTwo(numBucket / numBucketFit);
-      if (withinFailureProbOQPartition(N, Z * 2, layer, alpha, eps, M,
-                                       target)) {
-        break;
-      }
-    }
-    // printf("Z init = %ld\n", Z);
-    auto satisfy = [=](size_t _Z) {
-      _Z += _Z & 1;  // only use even bucket sizes
-      size_t numBucket = getBucketCount(_Z, N);
-      size_t numBucketFit = 1UL << GetLogBaseTwo(M / _Z);
-      double eps = double(_Z * numBucket) / N - 1;
-      size_t layer = GetLogBaseTwo(numBucket / numBucketFit);
-      return withinFailureProbOQPartition(N, _Z * 2, layer, alpha, eps, M,
-                                          target - 0.05);
-    };  // -0.05 due to failure prob in sampling
-    Z = lowerBound(Z / 2, Z, satisfy);
-    Z += Z & 1;
-    size_t numBucket = getBucketCount(Z, N);
-    size_t numBucketFit = 1UL << GetLogBaseTwo(M / Z);
-    size_t layer = GetLogBaseTwo(numBucket / numBucketFit);
-    // printf("alpha=%f, slack=%f\n", alpha, slack_sampling);
-    double cost = TotalCostDistriOSort(Z, N, M, layer, slack_sampling * alpha);
-    double nextCost = 0;
-    while (true) {
-      size_t nextZ_min = N / (getBucketCount(Z, N) / 2) + 1;
-      size_t nextZ_max = 2 * Z;
-      size_t nextZ = lowerBound(nextZ_min, nextZ_max, satisfy);
-      nextZ += nextZ & 1;
-      // printf("nextZ = %ld\n", nextZ);
-      if (nextZ >= M / 32 || nextZ >= N / 32) {
-        break;
-      }
-      size_t numBucket = getBucketCount(nextZ, N);
-      size_t numBucketFit = 1UL << GetLogBaseTwo(M / nextZ);
-      size_t layer = GetLogBaseTwo(numBucket / numBucketFit);
-      nextCost =
-          TotalCostDistriOSort(nextZ, N, M, layer, slack_sampling * alpha);
-      // printf("nextCost=%f\n", nextCost);
-
-      if (nextCost > cost) {
-        break;
-      }
-      Z = nextZ;
-      cost = nextCost;
-    }
-    if (cost < bestCost) {
-      bestCost = cost;
-      numBucket = getBucketCount(Z, N);
-      numBucketFit = 1UL << GetLogBaseTwo(M / Z);
-      double eps = double(Z * numBucket) / N - 1;
-      params.layer = GetLogBaseTwo(numBucket / numBucketFit);
-      params.Z = Z;
-      params.eps = eps;
-      params.alpha = alpha;
-      params.slack_sampling = slack_sampling;
-    } else {
-      break;
-    }
-  }
-  return params;
-}
-
-static OQSortParams bestOQSortParams(size_t N, size_t M, double target = -60) {
-  static const double eps_prec = 1e-4;
-  static const double slack_sampling_prec = 1e-4;
-  static const double alpha_prec = 1e-4;
-  static const double logM_prec = 0.25;
-  const size_t layer_max = std::max(1UL, (size_t)pow(log(N) / log(M), 2));
-  OQSortParams bestParams = {};
-  Assert(N > M);
-  double bestCost = (double)INFINITY;
-  for (size_t layer = 1; layer <= layer_max; ++layer) {
-    OQSortParams params = {};
-    auto MTarget = [&](int64_t M) {
-      auto alphaTarget = [&](double alpha) {
-        // printf("alpha = %f\n", alpha);
-        auto samplingSatisify = [&](double slack) {
-          return binomLogSf<UPPER>(slack * M * alpha, M, alpha) +
-                     log2(divRoundUp(N, M)) <
-                 target - 4;
-        };
-        double slack_sampling =
-            lowerBound(1.0, 1.5, samplingSatisify, slack_sampling_prec);
-
-        auto epsSatisfy = [&](double _eps) {
-          return withinFailureProbOQPartition(N, M, layer, alpha, _eps, M,
-                                              target - 0.05);
-        };
-        double eps = lowerBound(0.0, 1.0, epsSatisfy, eps_prec);
-        if (eps >= 1.0 - 2 * eps_prec) {
-          eps = lowerBound(0.0, 10.0, epsSatisfy, eps_prec * 10);
-          ;
-        }
-        params.eps = eps;
-        params.slack_sampling = slack_sampling;
-        // printf("alpha = %f, eps = %f\n", alpha, eps);
-        double cost = TotalCostOQSort(N, M, layer, alpha * slack_sampling, eps);
-        // printf("cost = %f\n", cost);
-        return cost;
-      };
-      static const double alpha_min = 0.01;
-      static const double alpha_max = 0.1;
-      double best_alpha = alpha_min;
-      double min_cost = INFINITY;
-      for (double alpha = alpha_min; alpha <= alpha_max; alpha += 0.01) {
-        double cost = alphaTarget(alpha);
-        if (cost < min_cost) {
-          best_alpha = alpha;
-          min_cost = cost;
-        } else {
-          break;
-        }
-      }
-      params.alpha = best_alpha;
-      return alphaTarget(best_alpha);
-    };
-
-    size_t bestM = M;
-
-    double cost = MTarget(bestM);
-
-    params.M = bestM;
-
-    if (cost < bestCost) {
-      bestCost = cost;
-      params.layer = layer;
-      bestParams = params;
-    }
-  }
-  bestParams.p_max = ceil(
-      pow((1 + bestParams.eps) * N / M,
-          1.0 / (bestParams.layer - 0.2)));  // -0.2 to avoid rounding issue
-  return bestParams;
-}
-
+/// @brief solve the optimal way of flex-way butterfly/distribution sort
 class ButterflyWaySolver {
  private:
   // options of mergesplit ways
@@ -659,27 +342,43 @@ class ButterflyWaySolver {
 };
 
 struct KWayButterflyParams {
-  std::vector<std::vector<uint64_t>> ways;
-  size_t Z;
-  size_t totalBucket;
+  std::vector<std::vector<uint64_t>> ways;  // ways of MergeSplit on each layer
+  size_t Z;                                 // bucket size
+  size_t totalBucket;                       // total number of buckets
 };
 
+struct DistriParams {
+  double samplingRatio;                     // sampling rate
+  double slackSampling;                     // slack of sampling in each batch
+  std::vector<std::vector<uint64_t>> ways;  // ways of MergeSplit on each layer
+  size_t Z;                                 // bucket size
+  size_t totalPartition;                    // product of all ways
+  size_t totalBucket;  // total number of buckets, should be >= totalPartition
+  size_t minTotalBucket;  // minimum total number of buckets to satisfy failure
+                          // probability
+};
+
+/// @brief find the optimal parameters for flex-way butterfly o-sort
+/// @param N number of elements
+/// @param M number of elements that fit in internal memory
+/// @param target failure probability target in log scale
+/// @return optimal parameters
 static KWayButterflyParams bestKWayButterflyParams(size_t N,
                                                    size_t M = 0x7000000 / 136,
+                                                   int64_t b = 128,
                                                    double target = -60) {
   double minCost = INFINITY;
   KWayButterflyParams optimalParams;
   const std::vector<uint64_t> choices = {2, 3, 4, 5, 6, 7, 8};
-  const std::vector<double> bitonicCost = {
-      0.183596, 0.444128, 0.985086, 2.275917, 5.363025, 12.508203, 29.262215};
+  const double bitonicCostFactor = 7.2e-6;
+
   const std::vector<std::vector<double>> costs = {
-      {0.067040, 0.092965, 0.100130, 0.098910, 0.092490, 0.096466, 0.098223},
-      {0.108723, 0.161996, 0.174614, 0.186288, 0.195849, 0.207293, 0.212523},
-      {0.234463, 0.346844, 0.379626, 0.408319, 0.433684, 0.459960, 0.471675},
-      {0.509743, 0.784653, 0.856935, 0.910044, 0.948897, 0.994666, 1.013502},
-      {1.139603, 1.725107, 1.854331, 2.058958, 2.064610, 2.118721, 2.149046},
-      {2.839750, 3.790226, 3.941216, 4.139045, 4.287033, 4.438938, 4.513650},
-      {6.552275, 7.858482, 8.353425, 8.662583, 8.997599, 9.329178, 9.564495}};
+      {6.889e-02, 1.698e-07, 1.905e-07}, {5.630e-02, 9.017e-06, 1.781e-07},
+      {6.714e-02, 1.122e-05, 1.691e-07}, {7.285e-02, 1.247e-05, 1.734e-07},
+      {5.692e-02, 1.221e-05, 1.825e-07}, {5.723e-02, 1.303e-05, 1.878e-07},
+      {5.684e-02, 1.345e-05, 1.892e-07}};
+
+  std::vector<double> costZ(7);
 
 #ifdef DISK_IO
   static const double ioCostPerElement = 0.00096857;
@@ -687,20 +386,25 @@ static KWayButterflyParams bestKWayButterflyParams(size_t N,
   static const double ioCostPerElement = 0.00061467;
 #endif
   for (int i = 0; i < 7; ++i) {
-    size_t Z = 256UL << i;
-    if (Z >= N / 2 || Z >= M / 16) {
+    size_t logZ = 8 + i;
+    size_t Z = 1UL << logZ;
+    size_t M0 = M - divRoundUp((b + 2) * Z * 8, b);
+    if (Z > N / 2 || 16 * Z > M0) {
       if (i == 0) {
         printf("Input size / memory size too small\n");
         abort();
       }
       break;
     }
-    auto satisfy = [Z = Z, N = N, target = target](size_t bucketCount) {
-      return failureProbBucketSort(Z, N, bucketCount) < target;
+    auto satisfy = [=](size_t bucketCount) {
+      return failureProbButterflySort(Z, N, bucketCount) < target;
     };
     size_t minBucketCount = lowerBound(N / Z + 1, 3 * N / Z, satisfy);
-    size_t maxWayInternal = (M - Z * 8) / Z;
-    ButterflyWaySolver solver(choices, costs[i], ioCostPerElement * Z,
+    size_t maxWayInternal = M0 / Z;
+    for (int j = 0; j < 7; ++j) {
+      costZ[j] = costs[j][0] + (costs[j][1] + b * costs[j][2]) * Z * logZ;
+    }
+    ButterflyWaySolver solver(choices, costZ, ioCostPerElement * Z,
                               maxWayInternal);
     KWayButterflyParams params;
     double cost = solver.solve(params.ways, minBucketCount);
@@ -710,7 +414,7 @@ static KWayButterflyParams bestKWayButterflyParams(size_t N,
         actualBucketCount *= way;
       }
     }
-    cost += bitonicCost[i] * actualBucketCount;
+    cost += bitonicCostFactor * Z * logZ * logZ * actualBucketCount;
     if (cost < minCost) {
       minCost = cost;
       optimalParams = params;
@@ -718,6 +422,134 @@ static KWayButterflyParams bestKWayButterflyParams(size_t N,
       optimalParams.totalBucket = actualBucketCount;
     }
   }
+  return optimalParams;
+}
+
+/// @brief find the optimal parameters for flex-way distri o-sort
+/// @param N number of elements
+/// @param M number of elements that fit in internal memory
+/// @param B number of elements per page, set to 1 if already pre-shuffled
+/// @param target failure probability target in log scale
+/// @return optimal parameters
+static DistriParams bestDistriParams(size_t N, size_t M = 0x7000000 / 136,
+                                     size_t B = 1, int64_t b = 128,
+                                     double target = -60) {
+  double minCost = INFINITY;
+  DistriParams optimalParams;
+  const std::vector<uint64_t> choices = {2, 3, 4, 5, 6, 7, 8};
+  const double bitonicCostFactor = 7.2e-6;
+  // const std::vector<std::vector<double>> costs16 = {
+  //     {0.027208, 0.062339, 0.074877, 0.083373, 0.084987, 0.090973, 0.094594},
+  //     {0.053427, 0.131716, 0.155852, 0.164248, 0.113467, 0.120657, 0.126136},
+  //     {0.067885, 0.178683, 0.209582, 0.230375, 0.233684, 0.250123, 0.262026},
+  //     {0.148892, 0.374595, 0.436384, 0.477227, 0.482734, 0.514162, 0.535860},
+  //     {0.304131, 0.773884, 0.901490, 0.984308, 0.999014, 1.059123, 1.103032},
+  //     {0.624599, 1.621319, 1.873467, 2.033733, 2.064392, 2.182470, 2.274683},
+  //     {1.301665, 3.375710, 3.884231, 4.207232, 4.271370, 4.504563, 4.711345},
+  //     {3.247753, 7.079485, 8.103368, 8.672383, 8.987384, 9.347671, 9.674656}};
+  // const std::vector<std::vector<double>> costs128 = {
+  //     {0.040987, 0.072334, 0.077112, 0.083998, 0.085417, 0.090983, 0.093360},
+  //     {0.088015, 0.155585, 0.163523, 0.177144, 0.180525, 0.192080, 0.197212},
+  //     {0.200702, 0.329450, 0.343935, 0.379935, 0.394584, 0.422252, 0.437080},
+  //     {0.413447, 0.730196, 0.780530, 0.855178, 0.875196, 0.917903, 0.946604},
+  //     {0.885438, 1.634678, 1.715012, 1.831199, 1.864355, 1.961980, 1.999063},
+  //     {2.571125, 3.490637, 3.658499, 3.926035, 4.011425, 4.294402, 4.435121},
+  //     {5.754265, 7.454927, 7.822982, 8.327188, 8.439162, 8.859011, 8.953003},
+  //     {12.228781, 15.865265, 16.463026, 17.766671, 17.935565, 18.941199,
+  //      19.194945}};
+
+  // std::vector<std::vector<double>> costs(
+  //     costs128.size(), std::vector<double>(costs128[0].size()));
+  // for (size_t row = 0; row < costs128.size(); ++row) {
+  //   for (size_t col = 0; col < costs128[row].size(); ++col) {
+  //     costs[row][col] =
+  //         (costs128[row][col] * (b - 16) + costs16[row][col] * (128 - b)) /
+  //         112 * 136 / (b + 8);
+  //   }
+  // }
+
+  const std::vector<std::vector<double>> costs = {
+      {1.000e-02, 5.000e-06, 1.791e-07}, {7.015e-02, 9.300e-06, 1.762e-07},
+      {8.854e-02, 1.160e-05, 1.680e-07}, {1.137e-01, 1.236e-05, 1.801e-07},
+      {7.767e-02, 1.308e-05, 1.807e-07}, {1.000e-01, 1.347e-05, 1.923e-07},
+      {1.092e-01, 1.421e-05, 1.908e-07}};
+  std::vector<double> costZ(7);
+#ifdef DISK_IO
+  static const double ioCostPerElement = 0.00096857;
+#else
+  static const double ioCostPerElement = 0.00061467;
+#endif
+  for (double samplingRatio = 0.01; samplingRatio < 0.031;
+       samplingRatio += 0.005) {
+    for (int i = 0; i < 12; ++i) {
+      size_t logZ = 8 + i;
+      size_t Z = 1UL << logZ;
+      size_t M0 =
+          M - divRoundUp((b + 2) * Z * 8, b) -
+          4 * N / M;  // minus space used for mergesplit and storing pivots
+      if (Z > N / 2 || 16 * Z > M0) {
+        if (i == 0) {
+          printf("Input size / memory size too small\n");
+          abort();
+        }
+        break;
+      }
+      size_t maxFinalPartSize = M0 * b / (b + 4);
+      auto satisfy = [=](size_t bucketCount) {
+        return failureProbKWayDistriSortWithinTarget(
+            Z, N, B, bucketCount, divRoundUp(N, maxFinalPartSize),
+            samplingRatio, target);
+      };
+
+      size_t minBucketCount = lowerBound(N / Z + 1, 5 * N / Z, satisfy);
+      size_t minTotalWay = divRoundUp(minBucketCount, maxFinalPartSize / Z);
+      size_t maxWayInternal = M0 / Z;
+      for (int j = 0; j < 7; ++j) {
+        costZ[j] = costs[j][0] + (costs[j][1] + b * costs[j][2]) * Z * logZ;
+      }
+      ButterflyWaySolver solver(choices, costZ, ioCostPerElement * Z,
+                                maxWayInternal);
+      DistriParams params;
+      double cost = solver.solve(params.ways, minTotalWay);
+      uint64_t totalPartition = 1;
+      for (auto& vec : params.ways) {
+        for (auto way : vec) {
+          totalPartition *= way;
+        }
+      }
+      auto satisfy2 = [=](size_t bucketCountFinalLayer) {
+        return failureProbKWayDistriSortWithinTarget(
+            Z, N, B, bucketCountFinalLayer * totalPartition, totalPartition,
+            samplingRatio, target);
+      };
+      size_t bucketCountFinalLayer =
+          lowerBound(divRoundUp(minBucketCount, totalPartition),
+                     maxFinalPartSize / Z, satisfy2);
+      cost *= bucketCountFinalLayer;
+      size_t partitionSize = bucketCountFinalLayer * Z;
+      double logPartitionSize = log2(partitionSize);
+      cost += bitonicCostFactor * partitionSize * logPartitionSize *
+              logPartitionSize * totalPartition;
+      auto samplingSatisify = [=](double slack) {
+        return binomLogSf(slack * M * samplingRatio, M, samplingRatio) +
+                   log2(divRoundUp(N, M)) <
+               target - 4;
+      };
+      double slackSampling = lowerBound(1.0, 1.5, samplingSatisify, 1e-4);
+      cost *= 1 + samplingRatio * slackSampling;
+      if (cost < minCost) {
+        minCost = cost;
+        optimalParams = params;  // copy ways
+        optimalParams.Z = Z;
+        optimalParams.totalPartition = totalPartition;
+        optimalParams.totalBucket = totalPartition * bucketCountFinalLayer;
+        optimalParams.minTotalBucket = minBucketCount;
+        optimalParams.samplingRatio = samplingRatio;
+        optimalParams.slackSampling = slackSampling;
+      }
+    }
+  }
+
   return optimalParams;
 }
 }  // namespace EM::Algorithm

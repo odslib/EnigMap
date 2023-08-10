@@ -32,7 +32,6 @@
 namespace _ORAM::PathORAM::ORAMClient {
 template<typename T=Block::DefaultBlockData
   , unsigned int Z=ORAM__Z
-  , bool ENCRYPT_BUCKETS=true
   , bool ENCRYPT_LARGE_BUCKETS=ORAM_SERVER__ENCRYPT_LARGE_BUCKETS
   , unsigned int LEVELS_PER_PACK=ORAM_SERVER__LEVELS_PER_PACK
   , unsigned int DIRECTLY_CACHED_LEVELS=ORAM_SERVER__DIRECTLY_CACHED_LEVELS
@@ -41,7 +40,7 @@ struct ORAMClient {
   using _T = T;
   using Block_t = typename Block::Block<T, false>;
   using StashedBlock_t = typename StashedBlock::StashedBlock<Block_t>;
-  using Bucket_t = typename _ORAM::PathORAM::Bucket::Bucket<Block_t,Z,ENCRYPT_BUCKETS>;
+  using Bucket_t = typename _ORAM::PathORAM::Bucket::Bucket<Block_t,Z>;
   using BucketMetadata_t = typename Bucket_t::BucketMetadata_t;
   using ORAMClientInterface_t = typename ORAMClientInterface::ORAMClientInterface<Block_t, Bucket_t, ENCRYPT_LARGE_BUCKETS, LEVELS_PER_PACK, DIRECTLY_CACHED_LEVELS>;
   
@@ -71,7 +70,7 @@ struct ORAMClient {
   // This constructor initializes ORAM with an empty AVL tree.
   //
   explicit ORAMClient(uint64_t N, bool _noInit=false) : 
-      oramServerClient(N, _noInit)
+      oramServerClient(N)
     , N_(N)
     , L_(CeilLog2(N))
     , S_(Z * (CeilLog2(N)+1) + ORAM__MS)
@@ -79,26 +78,7 @@ struct ORAMClient {
     , noInit(_noInit)
     {
     PROFILE_F();
-      
-    // Fill the server with encryptions of dummy block
-    // 
-    if (!noInit) {
-      Bucket_t bucket;
-      BucketMetadata_t md;
-      for (uint64_t l = 0; l <= L_; ++l) {
-        for (uint64_t i = 0; i < (1 << l); ++i) {
-          uint64_t pos = i << (L_ - l);
-          for (uint64_t j = 0; j < Bucket_t::BUCKET_SIZE; ++j) {
-            bucket.blocks[j] = Block_t::DUMMY();
-            oramServerClient.WriteBlock(pos, l, j, bucket.blocks[j]);
-            md = BucketMetadata_t::DUMMY();
-          }
-          oramServerClient.WriteBucketMetadata(pos, l, md);
-        }
-      }
-    }
     X_LOG("ORAMClientInterface: Done setting client up!");
-
   }
 
   void BeginAccess(const ORAMAddress& oaddress, const Position& newPos, Block_t& ret, const bool markCached=true) {
@@ -140,8 +120,8 @@ struct ORAMClient {
     for (Index j=0; j < Bucket_t::BUCKET_SIZE; j++) {
       StashedBlock_t sb = DUMMY<StashedBlock_t>();
       oramServerClient.ReadBlock(pos, depth, j, sb.block);
-      sb.oaddress = md.priv.addresses[j];
-      md.priv.addresses[j] = DUMMY<ORAMAddress>();
+      sb.oaddress = md.addresses[j];
+      md.addresses[j] = DUMMY<ORAMAddress>();
       stash_.push_back(sb);
     }
   }
@@ -198,7 +178,7 @@ struct ORAMClient {
 
 
     for (int j=0; j < Bucket_t::BUCKET_SIZE; j++) {
-      md.priv.addresses[j] = blocks[j].oaddress;
+      md.addresses[j] = blocks[j].oaddress;
       oramServerClient.WriteBlock(pos, depth, j, blocks[j].block);
     }
     
@@ -298,13 +278,15 @@ struct ORAMClient {
     #endif
   }
 
+// #ifndef NDEBUG
   void _DumpStash() {
-    // for (uint64_t i=0; i<stash_.size(); i++) {
-    //   if (stash_[i].oaddress != ORAMAddress::DUMMY()) {
-    //     X_LOG_SIMPLE(stash_[i].oaddress, ", ");
-    //   }
-    // }
-    // X_LOG_SIMPLE("\n");
+    for (uint64_t i=0; i<stash_.size(); i++) {
+      if (stash_[i].oaddress != ORAMAddress::DUMMY()) {
+        X_LOG_SIMPLE(stash_[i].oaddress, ", ");
+      }
+    }
+    X_LOG_SIMPLE("\n");
+    oramServerClient._Dump();
   }
 
   void _DumpVector(std::vector<TaggedT<StashedBlock_t>>& v, uint64_t x) {
@@ -315,6 +297,7 @@ struct ORAMClient {
     // }
     // X_LOG_SIMPLE("\n");
   }
+// #endif
 
 private:
   void EvictPath() {
@@ -443,7 +426,7 @@ private:
       BucketMetadata_t md = BucketMetadata_t::DUMMY();
       StashedBlock_t blocks[Z];
       for (uint64_t j=0; j<Z; j++) {
-        md.priv.addresses[j] = v[i*Z+j].v.oaddress;
+        md.addresses[j] = v[i*Z+j].v.oaddress;
         oramServerClient.WriteBlock(state.savedPath, L_-i, j, v[i*Z+j].v.block);
       }
       oramServerClient.WriteBucketMetadata(state.savedPath, L_-i, md);

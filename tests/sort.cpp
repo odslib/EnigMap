@@ -1,18 +1,15 @@
-#include "external_memory/algorithm/sort.hpp"
-
-#include "external_memory/algorithm/ca_bucket_sort.hpp"
-#include "external_memory/algorithm/mat_transpose.hpp"
-#include "external_memory/algorithm/min_io_sort.hpp"
-// #include "oram/common/block.hpp"
 #include <gtest/gtest.h>
 
 #include <unordered_map>
 
+#include "external_memory/algorithm/ca_bucket_sort.hpp"
+#include "external_memory/algorithm/kway_butterfly_sort.hpp"
+#include "external_memory/algorithm/kway_distri_sort.hpp"
+#include "external_memory/algorithm/mat_transpose.hpp"
 #include "testutils.hpp"
 
 using namespace EM::Algorithm;
 using namespace EM::NonCachedVector;
-using namespace EM::MemServer;
 using namespace std;
 
 // template <typename T>
@@ -344,53 +341,25 @@ TEST(TestSort, KWayInterleaveSepMarks) {
 }
 
 TEST(TestSort, KWayMergeSplit) {
-  vector<uint8_t> marks = {3, 3, 1, 4, 3, 0, 2, 0, 4, 1,
-                           0, 3, 1, 2, 4, 4, 0, 1, 2, 2};
-  vector<TaggedT<uint64_t>> v(marks.size());
-  for (size_t i = 0; i < marks.size(); ++i) {
-    v[i].setTag((uint64_t)marks[i] + 5);
-    v[i].setData(marks[i]);
-  }
-  v[0].setDummy();
-  v[2].setDummy();
-  v[6].setDummy();
-  v[8].setDummy();
-  v[9].setDummy();
-  v[10].setDummy();
-  vector<vector<TaggedT<uint64_t>>::iterator> begins;
-  for (size_t i = 0; i < 5; ++i) {
-    begins.push_back(v.begin() + i * marks.size() / 5);
-  }
-
-  MergeSplitKWay(begins, marks.size() / 5);
-  for (auto ele : v) {
-    if (ele.isDummy()) {
-      cout << "D"
-           << " ";
-    } else {
-      cout << ele.v << " ";
-    }
-  }
-  cout << endl;
   for (size_t way = 3; way <= 8; ++way) {
     vector<TaggedT<uint64_t>> vLarge(16384 * way);
     for (int round = 0; round < 50; ++round) {
       for (size_t i = 0; i < way; ++i) {
         for (size_t j = 0; j < 16384; ++j) {
-          vLarge[i * 16384 + j].setTag(i + way * 1000);
           vLarge[i * 16384 + j].setData(i);
+          vLarge[i * 16384 + j].setTag(i + way * 1000);
           if (UniformRandom() % 4 == 0) {
             vLarge[i * 16384 + j].setDummy();
           }
         }
       }
       fisherYatesShuffle(vLarge.begin(), vLarge.end());
-      vector<vector<TaggedT<uint64_t>>::iterator> begins;
+      vector<TaggedT<uint64_t>>::iterator begins[8];
 
       for (size_t i = 0; i < way; ++i) {
-        begins.push_back(vLarge.begin() + i * 16384);
+        begins[i] = vLarge.begin() + i * 16384;
       }
-      MergeSplitKWay(begins, 16384);
+      MergeSplitKWay(begins, way, 16384);
       for (size_t i = 0; i < vLarge.size(); ++i) {
         if (!vLarge[i].isDummy()) {
           ASSERT_EQ(vLarge[i].v, i / 16384);
@@ -401,29 +370,33 @@ TEST(TestSort, KWayMergeSplit) {
   }
 }
 
-TEST(TestSort, KWayParams) {
+void testKWayParams() {
   cout.precision(4);
-  for (int lgSize = 6; lgSize <= 11; ++lgSize) {
+  size_t b = 128;
+  for (int lgSize = 6; lgSize <= 10; ++lgSize) {
     size_t N = pow(10, lgSize);
     double target = -60;
-    KWayButterflyParams params =
-        bestKWayButterflyParams(N, 0x7000000 / 136, target);
+    size_t M = 0x7500000 / (b + 8);
+
+    KWayButterflyParams params;
+    params = bestKWayButterflyParams(N, M, b, target);
+
     size_t Z = params.Z;
     double padRate = double(params.totalBucket * params.Z) / N - 1.0;
-    auto satisfy = [Z = Z, N = N, target = target](size_t bucketCount) {
-      return failureProbBucketSort(Z, N, bucketCount) < target;
+    auto satisfy = [=](size_t bucketCount) {
+      return failureProbButterflySort(Z, N, bucketCount) < target;
     };
 
     size_t minBucketCount = lowerBound(N / Z + 1, 3 * N / Z, satisfy);
     double minPadRate = (double)minBucketCount * Z / N - 1;
     size_t Zr = ceil(Z / (1 + padRate));
-    double failProb = failureProbBucketSort(params.Z, N, params.totalBucket);
+    double failProb = failureProbButterflySort(params.Z, N, params.totalBucket);
     cout << "$10^{" << lgSize << "}$ & " << params.Z << " & " << minPadRate
          << " & " << padRate << " & ";
     bool init = true;
     for (auto sub : params.ways) {
       if (!init) {
-        cout << "\\times";
+        cout << ")\\times";
       } else {
         cout << "$";
       }
@@ -437,10 +410,99 @@ TEST(TestSort, KWayParams) {
         inInit = false;
         cout << way;
       }
-      cout << ")$";
     }
+    cout << ")$";
     cout << endl;
   }
+  for (size_t N : {258066745, 309680094, 371616113}) {
+    double target = -60;
+    size_t M = 0x7500000 / (b + 8);
+
+    KWayButterflyParams params;
+    params = bestKWayButterflyParams(N, M, b, target);
+
+    size_t Z = params.Z;
+    double padRate = double(params.totalBucket * params.Z) / N - 1.0;
+    auto satisfy = [=](size_t bucketCount) {
+      return failureProbButterflySort(Z, N, bucketCount) < target;
+    };
+
+    size_t minBucketCount = lowerBound(N / Z + 1, 3 * N / Z, satisfy);
+    double minPadRate = (double)minBucketCount * Z / N - 1;
+    size_t Zr = ceil(Z / (1 + padRate));
+    double failProb = failureProbButterflySort(params.Z, N, params.totalBucket);
+    cout << "$" << N << "$ & " << params.Z << " & " << minPadRate << " & "
+         << padRate << " & ";
+    bool init = true;
+    for (auto sub : params.ways) {
+      if (!init) {
+        cout << ")\\times";
+      } else {
+        cout << "$";
+      }
+      init = false;
+      cout << "(";
+      bool inInit = true;
+      for (auto way : sub) {
+        if (!inInit) {
+          cout << "\\times";
+        }
+        inInit = false;
+        cout << way;
+      }
+    }
+    cout << ")$";
+    cout << endl;
+  }
+}
+
+void testDistriParams() {
+  cout.precision(4);
+  size_t b = 128;
+  for (size_t b = 128; b <= 128; b = b * 3 / 2) {
+    size_t B = 4096 / b;
+    for (int lgSize = 6; lgSize <= 10; ++lgSize) {
+      size_t N = pow(10, lgSize);
+      double target = -60;
+      size_t wrappedSize = b % 32 == 16 ? b + 16 : b + 8;
+      size_t M = 0x7500000 / wrappedSize;
+
+      DistriParams params = bestDistriParams(N, M, B, b, target);
+      size_t Z = params.Z;
+      double padRate = double(params.totalBucket * params.Z) / N - 1.0;
+
+      cout << "$10^{" << lgSize << "}$ & " << params.Z << " & "
+           << params.samplingRatio << " & " << padRate << " & ";
+      bool init = true;
+      for (auto sub : params.ways) {
+        if (!init) {
+          cout << ")\\times";
+        } else {
+          cout << "$";
+        }
+        init = false;
+        cout << "(";
+        bool inInit = true;
+        for (auto way : sub) {
+          if (!inInit) {
+            cout << "\\times";
+          }
+          inInit = false;
+          cout << way;
+        }
+      }
+      cout << ")\\times";
+      cout << params.totalBucket / params.totalPartition;
+      cout << "$" << endl;
+    }
+  }
+}
+
+TEST(TestSort, KWayParams) {
+  printf("--------Butterfly-----------\n");
+  testKWayParams();
+  printf("--------Distri-----------\n");
+  testDistriParams();
 }
 
 TEST(TestSort, testAuth) {
@@ -541,98 +603,6 @@ TEST(TestSort, MergePermute) {
       }
       marks.clear();
       data.clear();
-    }
-  }
-}
-
-TEST(TestProbCalc, TestOQ) {
-  printf("%d\n", withinFailureProbOQPartition(371616317, 112 * (1 << 20) / 128,
-                                              1, 0.013461, 0.120402 + 0.340416,
-                                              112 * (1 << 20) / 128, -80));
-  OQSortParams params =
-      bestOQSortParams(371616317 / 128, 112 * (1 << 20) / 136);
-  printf("alpha=%f, eps=%f, M=%zu, slack_sampling=%f, layer = %ld, p_max=%ld\n",
-         params.alpha, params.eps, params.M, params.slack_sampling,
-         params.layer, params.p_max);
-}
-
-TEST(TestProbCalc, TestBestBucketSizesPivot) {
-  vector<uint64_t> sizes = {1000000,    10000000,    100000000,
-                            1000000000, 10000000000, 100000000000};
-  // vector<uint64_t> sizes = {8077716};
-  for (double factor = 1; factor <= 800; factor *= 1.2) {
-    uint64_t size = (uint64_t)(factor * (1UL << 19));
-    uint64_t M = 112 * (1 << 20) / 136;
-    if (size < M) {
-      continue;
-    }
-    DistriOSortParams params = bestDistriOSortParams(size, M);
-    printf(
-        "size=%ld, alpha=%f, eps=%f, M=%zu, slack_sampling=%f, layer = %ld, "
-        "Z=%ld\n",
-        size, params.alpha, params.eps, M, params.slack_sampling, params.layer,
-        params.Z);
-  }
-  printf("--------------\n\n");
-  for (size_t elementSize = 16; elementSize <= 2048;
-       elementSize = elementSize * 6 / 5) {
-    uint64_t size = 100000000;
-    uint64_t M = 112 * (1 << 20) / (elementSize + 8);
-    if (size < M) {
-      continue;
-    }
-    DistriOSortParams params = bestDistriOSortParams(size, M);
-    printf(
-        "elementsize=%ld, size=%ld, alpha=%f, eps=%f, M=%zu, "
-        "slack_sampling=%f, layer = %ld, Z=%ld\n",
-        elementSize, size, params.alpha, params.eps, M, params.slack_sampling,
-        params.layer, params.Z);
-  }
-  for (uint64_t size : sizes) {
-    for (size_t element_size = 128; element_size <= 128; element_size *= 4) {
-      size_t M = 0x7000000 / (element_size + 8);
-      DistriOSortParams params = bestDistriOSortParams(size, M);
-      printf(
-          "size=%ld, alpha=%f, eps=%f, M=%zu, slack_sampling=%f, layer = %ld, "
-          "Z=%ld\n",
-          size, params.alpha, params.eps, M, params.slack_sampling,
-          params.layer, params.Z);
-    }
-  }
-}
-
-TEST(TestProbCalc, TestBestOQParams) {
-  // UNDONE(failing-test): this test is failing.
-  //
-  // GTEST_SKIP();
-  for (double factor = 1; factor <= 800; factor *= 1.2) {
-    uint64_t size = (uint64_t)(factor * (1UL << 19));
-    uint64_t M = 112 * (1 << 20) / 136;
-    if (size < M) {
-      continue;
-    }
-    OQSortParams params = bestOQSortParams(size, M);
-    printf(
-        "size=%ld, alpha=%f, eps=%f, M=%zu, slack_sampling=%f, layer = %ld, "
-        "p_max=%ld\n",
-        size, params.alpha, params.eps, params.M, params.slack_sampling,
-        params.layer, params.p_max);
-    double cost =
-        TotalCostOQSort(size, params.M, params.layer,
-                        params.alpha * params.slack_sampling, params.eps);
-    printf("total cost=%f\n", cost);
-  }
-  vector<uint64_t> sizes = {1000000,    10000000,    100000000,
-                            1000000000, 10000000000, 100000000000};
-  for (uint64_t size : sizes) {
-    for (size_t element_size = 128; element_size <= 128; element_size *= 4) {
-      size_t M = 0x7000000 / (element_size + 8);
-      OQSortParams params = bestOQSortParams(size, M);
-      printf(
-          "size=%ld, alpha=%f, eps=%f, M=%zu, slack_sampling=%f, layer = %ld, "
-          "p_max=%ld\n",
-          size, params.alpha, params.eps, params.M, params.slack_sampling,
-          params.layer, params.p_max);
     }
   }
 }

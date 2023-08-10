@@ -1,35 +1,19 @@
 #!/bin/bash
 source /startsgxenv.sh
-
+apt install bc
 # Algorithms:
-# BUCKETSORT
-# OQUICKSORT
-# CABUCKETSORT
-# BITONICSORT
-# BUCKETSHUFFLE
-# ORSHUFFLE
-# CABUCKETSHUFFLE
-# BITONICSHUFFLE
-# DISTRIBUTIONOSORT
-# BUCKETSORT DISTRIBUTIONOSORT BUCKETSHUFFLE BITONICSORT ORSHUFFLE KWAYBUTTERFLYOSORT KWAYBUTTERFLYOSHUFFLE BUCKETSORT BUCKETSHUFFLE
-# KWAYBUTTERFLYOSORT DISTRIBUTIONOSORT BITONICSORT CABUCKETSORT KWAYBUTTERFLYOSHUFFLE ORSHUFFLE BITONICSHUFFLE CABUCKETSHUFFLE
-
-# ALGOs=(KWAYBUTTERFLYOSORT DISTRIBUTIONOSORT BITONICSORT CABUCKETSORT KWAYBUTTERFLYOSHUFFLE ORSHUFFLE BITONICSHUFFLE CABUCKETSHUFFLE)
-MIN_ELEMENT_SIZE=128
+ALGOs=(KWAYBUTTERFLYOSORT KWAYDISTRIBUTIONOSORT BITONICSORT CABUCKETSORT KWAYBUTTERFLYOSHUFFLE ORSHUFFLE BITONICSHUFFLE CABUCKETSHUFFLE UNOPTBITONICSORT EXTMERGESORT)
+MIN_ELEMENT_SIZE=128 # element size in bytes
 MAX_ELEMENT_SIZE=128
-ALGOs=(DISTRIBUTIONOSORT)
-# MIN_SIZE=5000000
-# MAX_SIZE=5000000
-# MIN_SIZE=524288
-# MAX_SIZE=419430402
-MIN_SIZE=100000000
+MIN_SIZE=1000000    # input size in number of elements
 MAX_SIZE=100000000
-MIN_ENCLAVE_SIZE=128 #MB
+MIN_ENCLAVE_SIZE=128 # enclave size in MB
 MAX_ENCLAVE_SIZE=128
-IO_ROUND=1
-CORE_ID=5
-DISK_IO=0
+IO_ROUNDs=(1) # number of rounds encryption/decryption is performed, used to get breakdown
+CORE_ID=5 # the cpu core to run the program
+DISK_IO=0 # 0: no disk IO, 1: disk IO
 
+for IO_ROUND in ${IO_ROUNDs[@]}; do
 if [ $IO_ROUND = 0 ]
 then
     IO_TAG=_MOCK_IO
@@ -52,21 +36,36 @@ fi
 
 for ALGO in ${ALGOs[@]}; do
 FILENAME=${ALGO}_${MIN_ELEMENT_SIZE}_${MAX_ELEMENT_SIZE}_${MIN_SIZE}_${MAX_SIZE}${IO_TAG}${DISK_TAG}${ENCLAVE_SIZE_TAG}.out
+if [ -z "$1" ]; then
 rm -f $FILENAME
 echo "output to"${FILENAME}
+fi
 for (( encsize=$MIN_ENCLAVE_SIZE; encsize<=$MAX_ENCLAVE_SIZE; encsize*=2 ))
 do
-heapsizeB=$(( encsize * 999424 ))
+heapsizeB=$(( encsize * 1000000 ))
 hex_encsize=$(printf '%x\n' $heapsizeB)
 
 sed -i "/.*<Heap.*/c\  <HeapMaxSize>0x"${hex_encsize}"</HeapMaxSize>" ./Enclave/Enclave.config.xml
-# for s in $(seq $MIN_ELEMENT_SIZE $ELEMENT_SIZE_STEP $MAX_ELEMENT_SIZE)
-for (( s=$MIN_ELEMENT_SIZE; s<=$MAX_ELEMENT_SIZE; s=s*6/5 ))
+for (( s=$MIN_ELEMENT_SIZE; s<=$MAX_ELEMENT_SIZE; s=s*3/2 ))
 do
     make clean
     make SGX_MODE=HW SGX_PRERELEASE=1 ELEMENT_SIZE=$s ALGO=$ALGO MIN_SIZE=$MIN_SIZE MAX_SIZE=$MAX_SIZE IO_ROUND=$IO_ROUND DISK_IO=$DISK_IO ENCLAVE_SIZE=$encsize
-    taskset -c ${CORE_ID} stdbuf -oL nohup ./signal.elf &>> $FILENAME < /dev/null
-    sleep 1
+    if [[ $1 = 1 ]]; then
+        taskset -c ${CORE_ID} ./signal.elf
+        sleep 1
+    else
+        taskset -c ${CORE_ID} stdbuf -oL nohup ./signal.elf &>> $FILENAME < /dev/null
+        sleep 1
+        last_line=$(tail -n 1 $FILENAME)
+
+        last_token=$(echo -e "$last_line" | cut -f 3)
+
+        # Check if duration is greater than 4000
+        if (( $(echo "$last_token > 4000" | bc -l) )); then
+            break
+        fi
+    fi
+done
 done
 done
 done

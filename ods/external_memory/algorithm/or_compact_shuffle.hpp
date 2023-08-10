@@ -53,15 +53,15 @@ void OrCompactSeparateMark(Iterator begin, Iterator end,
   }
 }
 
-template <class Iterator, class Check>
+template <typename MarkType = uint32_t, class Iterator, class Check>
 void OrCompact(Iterator begin, Iterator end, const Check& isMarked) {
   size_t n = end - begin;
   Assert(n < UINT32_MAX);
   if (n <= 1) {
     return;
   }
-  std::vector<uint32_t> markPrefix(n + 1);
-  uint32_t prefixSum = 0;
+  std::vector<MarkType> markPrefix(n + 1);
+  MarkType prefixSum = 0;
   auto markIt = markPrefix.begin();
   *(markIt++) = 0;
   for (auto it = begin; it != end; ++it) {

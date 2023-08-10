@@ -1,6 +1,8 @@
 #pragma once
 #include "common/osort.hpp"
 
+/// @brief EdgeRec is a bitset that records the edges in a graph
+/// @tparam Bits the type of the bitset, default is uint64_t
 template <typename Bits = uint64_t>
 struct EdgeRec {
   Bits edges;
@@ -52,7 +54,6 @@ struct EdgeRec {
     Bits v0_to_v1_mask = 1UL << getEdgeOffset(v0, v1);
     Bits v1_to_v0_mask = 1UL << getEdgeOffset(v1, v0);
     edges ^= v0_to_v1_mask | v1_to_v0_mask;
-    // return !(edges & mask);
     return !(edges & v0_to_v1_mask);
   }
 
@@ -86,7 +87,7 @@ struct EdgeRec {
     // an edge is set to 1 if it's direction is from small vertex to larger
     EdgeRec path(k);
     // for edges appearing even number of times, set direction according to
-    // their order TODO: change it to a const eval
+    // their order
     path.edges = (~edges) & 0xFF7F3F1F0F070301UL;
     static constexpr Bits simpleMask = ~0x8040201008040201UL;
     // filtering out edges pointing to itself

@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include "external_memory/server/memServer.hpp"
 #ifdef DISK_IO
 #include "external_memory/server/batchFrontend.hpp"
 #else
@@ -26,9 +25,8 @@
 namespace EM::NonCachedVector {
 template <typename T,
           // UNDONE: parametrize here the backend / frontend
-          uint64_t page_size =
-              std::max((1UL << 12) - 32, 4 * sizeof(T)),  // 4kB
-          bool ENCRYPTED = true, bool AUTH = true
+          uint64_t page_size = std::max((1UL << 14) - 32, 4 * sizeof(T)),
+          bool ENCRYPTED = true, bool AUTH = true, bool LATE_INIT = false
 
           // T's per page: the number of T's that should go into a page of
           // external memory. UNDONE: server -> external memory server type.
@@ -61,10 +59,10 @@ struct Vector {
 // EM::MemoryServer::NonCachedServerFrontendInstance<Page,::EM::Backend::MemServerBackend,ENCRYPTED>;
 #ifdef DISK_IO
   using Server = EM::MemoryServer::NonCachedBatchServerFrontend<
-      Page, ::EM::Backend::MemServerBackend, ENCRYPTED, AUTH>;
+      Page, ::EM::Backend::MemServerBackend, ENCRYPTED, AUTH, LATE_INIT>;
 #else
   using Server = EM::MemoryServer::NonCachedServerFrontendInstance<
-      Page, ::EM::Backend::MemServerBackend, ENCRYPTED, AUTH>;
+      Page, ::EM::Backend::MemServerBackend, ENCRYPTED, AUTH, LATE_INIT>;
 #endif
 
   // fileserver here.
@@ -90,20 +88,21 @@ struct Vector {
     Iterator() : m_ptr(0), vec_ptr(NULL) {}
 
     // should not be called unless absolutely necessary
-    T operator*() {
+    T operator*() { return derefAuth(0); }
 
+    const T* operator->() { return &(**this); }
+
+    T derefAuth(uint32_t inAuth) {
       const size_t pageIdx = m_ptr / item_per_page;
       const size_t pageOffset = m_ptr % item_per_page;
       Page page;
       if constexpr (AUTH) {
-        vec_ptr->server.Read(pageIdx, page, 0);
+        vec_ptr->server.Read(pageIdx, page, inAuth);
       } else {
         vec_ptr->server.Read(pageIdx, page);
       }
       return page.pages[pageOffset];
     }
-
-    const T* operator->() { return &(**this); }
 
     // Prefix increment
     Iterator& operator++() {
@@ -138,6 +137,8 @@ struct Vector {
 
     auto& getVector() { return *vec_ptr; }
 
+    static Vector* getNullVector() { return NULL; }
+
     friend bool operator==(const Iterator& a, const Iterator& b) {
       return a.m_ptr == b.m_ptr;
     };
@@ -171,14 +172,29 @@ struct Vector {
     Iterator end;
     T* curr = (T*)UINT64_MAX;
     uint32_t counter;
-    Reader(Iterator _begin, Iterator _end, uint32_t counter = 0)
-        : it(_begin), end(_end), counter(counter) {}
+    Reader() {}
+
+    Reader(Iterator _begin, Iterator _end, uint32_t _counter = 0)
+        : it(_begin), end(_end), counter(_counter) {}
+
+    void init(Iterator _begin, Iterator _end, uint32_t _counter = 0) {
+      it = _begin;
+      end = _end;
+      counter = _counter;
+    }
+
+    // no translation by default
+    INLINE virtual uint64_t translatePageIdx(uint64_t pageIdx) {
+      return pageIdx;
+    }
+
+    virtual ~Reader() = default;
 
     T& get() {
       Assert(!eof());
       if (curr >= cache.pages + item_per_page) {
         auto& vec = it.getVector();
-        const size_t pageIdx = it.get_page_idx();
+        const size_t pageIdx = translatePageIdx(it.get_page_idx());
         if constexpr (AUTH) {
           vec.server.Read(pageIdx, cache, counter);
         } else {
@@ -210,13 +226,31 @@ struct Vector {
     Iterator it;
     Iterator end;
     T* curr = (T*)UINT64_MAX;
-    const size_t endPageIdx;
+    size_t endPageIdx;
     uint32_t counter;
-    PrefetchReader(Iterator _begin, Iterator _end, uint32_t counter = 0)
+
+    PrefetchReader() {}
+
+    // no translation by default
+    INLINE virtual uint64_t translatePageIdx(uint64_t pageIdx) {
+      return pageIdx;
+    }
+
+    virtual ~PrefetchReader() = default;
+
+    PrefetchReader(Iterator _begin, Iterator _end, uint32_t _counter = 0,
+                   uint64_t _heapSize = 0)
         : it(_begin),
           end(_end),
           endPageIdx((_end - 1).get_page_idx() + 1),
-          counter(counter) {}
+          counter(_counter) {}
+
+    void init(Iterator _begin, Iterator _end, uint32_t _counter = 0) {
+      it = _begin;
+      end = _end;
+      endPageIdx = (_end - 1).get_page_idx() + 1;
+      counter = _counter;
+    }
 
     T& get() {
       Assert(!eof());
@@ -229,9 +263,9 @@ struct Vector {
         for (size_t i = cachePageBeginIdx, cacheIdx = 0; i < cachePageEndIdx;
              ++i, ++cacheIdx) {
           if constexpr (AUTH) {
-            vec.server.ReadLazy(i, cache[cacheIdx], counter);
+            vec.server.ReadLazy(translatePageIdx(i), cache[cacheIdx], counter);
           } else {
-            vec.server.ReadLazy(i, cache[cacheIdx]);
+            vec.server.ReadLazy(translatePageIdx(i), cache[cacheIdx]);
           }
         }
         vec.server.flushRead();
@@ -255,17 +289,20 @@ struct Vector {
   };
 #else
   struct PrefetchReader : Reader {
-    PrefetchReader(Iterator _begin, Iterator _end, uint32_t counter = 0)
-        : Reader(_begin, _end, counter) {}
+    PrefetchReader() {}
+
+    PrefetchReader(Iterator _begin, Iterator _end, uint32_t _counter = 0,
+                   uint64_t _heapSize = 0)
+        : Reader(_begin, _end, _counter) {}
   };
 #endif
 
 #ifdef DISK_IO
-  // when there are multiple readers for the same frontend, e.g., external merge
-  // sort. the reader always send read requests for all its cache pages in
-  // advanced, and check if the job is done by the time it read those pages the
-  // advantage is that the requests for multipler readers can be interleaved and
-  // the most on-demand pages can be handled first
+  // when there are multiple readers for the same frontend, e.g., external
+  // merge sort. the reader always send read requests for all its cache pages
+  // in advanced, and check if the job is done by the time it read those pages
+  // the advantage is that the requests for multipler readers can be
+  // interleaved and the most on-demand pages can be handled first
   struct LazyPrefetchReader {
     std::vector<Page> cache;  // ring cache
 
@@ -313,6 +350,8 @@ struct Vector {
       }
       vec.server.flushRead();
     }
+
+    uint64_t translatePageIdx(uint64_t) = delete;
 
     T& get() {
       Assert(hasInit);
@@ -381,7 +420,7 @@ struct Vector {
       auto& vec = it.getVector();
       size_t pageIdx = it.get_page_idx();
       size_t pageOffset = it.get_page_offset();
-      if (pageOffset != 0) {
+      if (pageOffset != 0 && _begin != _begin.getVector().begin()) {
         if constexpr (AUTH) {
           vec.server.Read(pageIdx, cache, counter);
         } else {
@@ -413,15 +452,16 @@ struct Vector {
       auto& vec = it.getVector();
       if (pageOffset != 0) {
         Page originalPage;
-
-        if constexpr (AUTH) {
-          if (counter == 0) {
-            vec.server.Read(pageIdx, originalPage, counter);
+        if (it != vec.end()) {
+          if constexpr (AUTH) {
+            if (counter == 0) {
+              vec.server.Read(pageIdx, originalPage, counter);
+            }
+            // for counter greater than 0, we have to overwrite the last page.
+            // this issue should be addressed when calling the writer
+          } else {
+            vec.server.Read(pageIdx, originalPage);
           }
-          // for counter greater than 0, we have to overwrite the last page.
-          // this issue should be addressed when calling the writer
-        } else {
-          vec.server.Read(pageIdx, originalPage);
         }
 
         std::memcpy(originalPage.pages, cache.pages, pageOffset * sizeof(T));
@@ -479,11 +519,6 @@ struct Vector {
   Iterator begin() { return Iterator(0, *this); }
 
   Iterator end() { return Iterator(N, *this); }
-
-  void LRUTouch(uint64_t index) {
-    // UNDONE(): touches the given index in the LRU cache.
-    //
-  }
 };
 
 template <class InputIterator, class OutputIterator>
@@ -515,11 +550,15 @@ static OutputIterator CopyOut(InputIterator begin, InputIterator end,
 
   if (toBeginPageIdx == toEndPageIdx) {  // within a single page
     if (inputSize) {
-      if constexpr (auth) {
-        Assert(counter == 0);  // fine if counter is always 0
-        vec.server.Read(toBeginPageIdx, page, counter);
-      } else {
-        vec.server.Read(toBeginPageIdx, page);
+      if (to != to.getVector().begin() || toEnd != to.getVector().end()) {
+        if constexpr (auth) {
+          if (counter > 0) {
+            vec.server.Read(toBeginPageIdx, page, counter - 1);
+          }
+
+        } else {
+          vec.server.Read(toBeginPageIdx, page);
+        }
       }
       for (size_t pageOffset = toBeginOffset; pageOffset != toEndOffset;
            ++pageOffset) {
@@ -536,11 +575,12 @@ static OutputIterator CopyOut(InputIterator begin, InputIterator end,
   }
 
   if (toBeginOffset != 0) {
-    if constexpr (auth) {
-      Assert(counter == 0);  // fine if counter is always 0
-      vec.server.Read(toBeginPageIdx, page, counter);
-    } else {
-      vec.server.Read(toBeginPageIdx, page);
+    if (to != to.getVector().begin()) {
+      if constexpr (auth) {
+        vec.server.Read(toBeginPageIdx, page, counter);
+      } else {
+        vec.server.Read(toBeginPageIdx, page);
+      }
     }
     for (size_t pageOffset = toBeginOffset; pageOffset != item_per_page;
          ++pageOffset) {
@@ -564,11 +604,14 @@ static OutputIterator CopyOut(InputIterator begin, InputIterator end,
   }
   vec.server.flushWrite();
   if (toEndOffset != 0) {
-    if constexpr (auth) {
-      Assert(counter == 0);
-      vec.server.Read(toEndPageIdx, page, counter);
-    } else {
-      vec.server.Read(toEndPageIdx, page);
+    if (toEnd != to.getVector().end()) {
+      if constexpr (auth) {
+        if (counter > 0) {
+          vec.server.Read(toEndPageIdx, page, counter - 1);
+        }
+      } else {
+        vec.server.Read(toEndPageIdx, page);
+      }
     }
     for (size_t pageOffset = 0; pageOffset != toEndOffset; ++pageOffset) {
       page.pages[pageOffset] = *from;
@@ -582,95 +625,6 @@ static OutputIterator CopyOut(InputIterator begin, InputIterator end,
   }
   Assert(from == end);
   return toEnd;
-}
-
-template <typename T, class OutputIterator>
-static void Fill(OutputIterator begin, OutputIterator end, const T& val,
-                 uint32_t counter = 0) {
-  auto& vec = begin.getVector();
-  using Vec = std::remove_reference_t<decltype(vec)>;
-  auto& page = vec.getPageInstance();
-  constexpr bool auth = Vec::auth;
-  using Page = typename Vec::Page;
-
-  size_t inputSize = end - begin;
-  static size_t item_per_page = Vec::item_per_page;
-  size_t beginOffset = begin.get_page_offset();
-  size_t beginPageIdx = begin.get_page_idx();
-  size_t endOffset = end.get_page_offset();
-  size_t endPageIdx = end.get_page_idx();
-
-  // if constexpr (auth) {
-  //     if (beginOffset || endOffset) {
-  //         dbg_printf("Fill not aligned\n");
-  //     }
-  // }
-
-  if (beginPageIdx == endPageIdx) {  // within a single page
-    if (inputSize) {
-      if constexpr (auth) {
-        Assert(counter == 0);  // fine if counter is always 0
-        vec.server.Read(beginPageIdx, page, counter);
-      } else {
-        vec.server.Read(beginPageIdx, page);
-      }
-      for (size_t pageOffset = beginOffset; pageOffset != endOffset;
-           ++pageOffset) {
-        page.pages[pageOffset] = val;
-      }
-      if constexpr (auth) {
-        vec.server.Write(beginPageIdx, page, counter);
-      } else {
-        vec.server.Write(beginPageIdx, page);
-      }
-    }
-    return;
-  }
-
-  if (beginOffset != 0) {
-    if constexpr (auth) {
-      Assert(counter == 0);
-      vec.server.Read(beginPageIdx, page, counter);
-    } else {
-      vec.server.Read(beginPageIdx, page);
-    }
-    for (size_t pageOffset = beginOffset; pageOffset != item_per_page;
-         ++pageOffset) {
-      page.pages[pageOffset] = val;
-    }
-    if constexpr (auth) {
-      vec.server.Write(beginPageIdx++, page, counter);
-    } else {
-      vec.server.Write(beginPageIdx++, page);
-    }
-  }
-  for (size_t pageOffset = 0; pageOffset != item_per_page; ++pageOffset) {
-    page.pages[pageOffset] = val;
-  }
-  for (size_t pageIdx = beginPageIdx; pageIdx < endPageIdx; ++pageIdx) {
-    if constexpr (auth) {
-      vec.server.WriteLazy(pageIdx, page, counter);
-    } else {
-      vec.server.WriteLazy(pageIdx, page);
-    }
-  }
-  vec.server.flushWrite();
-  if (endOffset != 0) {
-    if constexpr (auth) {
-      Assert(counter == 0);
-      vec.server.Read(endPageIdx, page, counter);
-    } else {
-      vec.server.Read(endPageIdx, page);
-    }
-    for (size_t pageOffset = 0; pageOffset != endOffset; ++pageOffset) {
-      page.pages[pageOffset] = val;
-    }
-    if constexpr (auth) {
-      vec.server.Write(endPageIdx, page, counter);
-    } else {
-      vec.server.Write(endPageIdx, page);
-    }
-  }
 }
 
 template <class InputIterator, class OutputIterator>

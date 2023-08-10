@@ -10,7 +10,7 @@
 #include "otree/node.hpp"
 #include "otree/oram_interface.hpp"
 #include "external_memory/emvector.hpp"
-#include "external_memory/algorithm/sort.hpp"
+#include "external_memory/algorithm/sort_def.hpp"
 
 // This file implements https://eprint.iacr.org/2014/185.pdf with our optimizations.
 namespace _OBST {
@@ -205,9 +205,12 @@ namespace OBST {
       //
       #ifndef NDEBUG
       if (m.count(k) > 0) {
+        Assert(contained);
+        Assert(ret == m[k]);
         ret = m[k];
         return true;
       } else {
+        Assert(!contained);
         return false;
       }
       #endif
@@ -658,7 +661,7 @@ namespace OBST {
   private:
     INLINE Dir_t Direction(const Node& head, const K& k) {
       Dir_t ret = B_LEFT;
-      CMOV(k == head.k, ret, B_LEFT);
+      CMOV(k == head.k, ret, B_BALANCED);
       CMOV(k > head.k, ret, B_RIGHT);
       return ret;
     }

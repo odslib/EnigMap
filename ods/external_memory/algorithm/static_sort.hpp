@@ -1,12 +1,13 @@
-#include "block_for_sort.hpp"
+#pragma once
+#include "sort_def.hpp"
 // https://stackoverflow.com/questions/19790522/very-fast-sorting-of-fixed-length-arrays-using-comparator-networks
-/**
- * A Functor class to create a sort for fixed sized arrays/containers with a
- * compile time generated Bose-Nelson sorting network.
- * \tparam NumElements  The number of elements in the array or container to
- * sort. \tparam T            The element type. \tparam Compare      A
- * comparator functor class that returns true if lhs < rhs.
- */
+/// @brief A Functor class to create a sort for fixed sized arrays/containers
+/// with a compile time generated Bose-Nelson sorting network.
+/// @tparam NumElements  The number of elements in the array or container to
+/// sort
+/// @tparam T            The element type.
+/// @tparam Compare      A comparator functor class that returns true if lhs <
+/// rhs.
 namespace EM::Algorithm {
 template <unsigned NumElements, class Compare = void>
 class StaticSort {

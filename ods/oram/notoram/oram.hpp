@@ -16,7 +16,6 @@
 #include "common/tracing/tracer.hpp"
 #include "oram/common/indexers.hpp"
 #include "oram/common/block.hpp"
-#include "oram/common/concepts.hpp"
 
 // This file implements an oram interface that doesn't really implement ORAM
 // In debug mode this asserts that a position based ORAM is working as expected.
@@ -28,24 +27,18 @@ namespace _ORAM::NotORAM::ORAMClient
   template <typename T = Block::DefaultBlockData
     , bool ENCRYPT_BLOCKS = ORAM__ENCRYPT_BLOCKS
     , bool NOT_ORAM_ASSERTIONS = true>
-  requires true
-    && ::Concepts::Encryptable<Block::Block<T, ENCRYPT_BLOCKS> >
-    && (IS_POD<T>())
+  requires (IS_POD<T>())
   struct ORAMClient
   {
     using _T = T;
-    using Block_t = typename Block::Block<T, ENCRYPT_BLOCKS>;
+    using Block_t = typename Block::Block<T>;
     using StashedBlock = typename StashedBlock::StashedBlock<Block_t>;
-
-    uint8_t key_[16] = {0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41};
-    std::random_device rd_; // uses RDRND or /dev/urandom
-    std::uniform_int_distribution<uint64_t> dist_;
 
     uint64_t N_;
 
     struct Slot
     {
-      typename Block_t::Encrypted_t v;
+      Block_t v;
       struct FilledAssertionData {
         Position position;
         bool cached;
@@ -59,7 +52,7 @@ namespace _ORAM::NotORAM::ORAMClient
       //
       static INLINE Slot DUMMY() { 
         Slot ret;
-        ret.v.Encrypt(Block_t::DUMMY());
+        ret.v = Block_t::DUMMY();
         
         if constexpr (NOT_ORAM_ASSERTIONS) {
           ret.ad.position = DUMMY_POSITION;
@@ -121,7 +114,7 @@ namespace _ORAM::NotORAM::ORAMClient
       }
 
       Slot &slot = data_[oaddress.address];
-      slot.v.Decrypt(ret);
+      ret = slot.v;
 
       if constexpr (NOT_ORAM_ASSERTIONS) {
         Assert(slot.ad.cached || slot.ad.position == oaddress.position);
@@ -141,7 +134,7 @@ namespace _ORAM::NotORAM::ORAMClient
         Assert(slot.ad.cached);
       }
 
-      slot.v.Encrypt(block);
+      slot.v = block;
 
       if constexpr (NOT_ORAM_ASSERTIONS) {
         if (markUncached)
@@ -163,7 +156,8 @@ namespace _ORAM::NotORAM::ORAMClient
     }
 
     void UncacheAll() {
-      // UNDONE(): this
+      // UNDONE(): this, it's still ok like this, just a rough approximation.
+      //
     }
 
     // Appends a new block to the stash.
@@ -175,7 +169,7 @@ namespace _ORAM::NotORAM::ORAMClient
       }
       Assert(oaddr.address < N_);
       Assert(oaddr.position < N_);
-      data_[oaddr.address].v.Encrypt(Block_t::DUMMY());
+      data_[oaddr.address].v = Block_t::DUMMY();
 
       if constexpr (NOT_ORAM_ASSERTIONS) {        
         data_[oaddr.address].ad.position = oaddr.position;

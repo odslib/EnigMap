@@ -11,7 +11,7 @@ using namespace std;
 using K = _OBST::K;
 using V = _OBST::V;
 
-using ORAMClient_t = typename _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,4>;
+using ORAMClient_t = typename _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,4>;
 using OramClient_t = typename _OBST::OramClient::OramClient<ORAMClient_t>;
 using OBST = typename _OBST::OBST::OBST<OramClient_t>;
 using ORAMServer_t = ORAMClient_t::ORAMClientInterface_t;

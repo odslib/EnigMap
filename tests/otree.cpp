@@ -39,7 +39,9 @@ TYPED_TEST_P(TestOTree, BasicAssertions) {
   for (int i = 0; i < size; i++) {
     t.RecursivePrint();
     for (int _ = 0; _ < 10; _++) {
+      cerr << k << endl;
       k = (random() % maxK);
+      v1 = 0;
       EXPECT_EQ(t.Get(k, v1), m.count(k) > 0);
       if (m.count(k) > 0) {
         v2 = m[k];
@@ -394,8 +396,8 @@ struct TestParameter {
 
 
 typedef ::testing::Types<
-    TestParameter<_ORAM::RingORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,ORAM__S,false,false,4> >
-  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,4> >
+    TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,4> >
+  , TestParameter<_ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,true,4> >
   , TestParameter<_ORAM::NotORAM::ORAMClient::ORAMClient<_OBST::Node,false,false> >
   , TestParameter<_ORAM::NotORAM::ORAMClient::ORAMClient<_OBST::Node,false,true> >
   , TestParameter<_ORAM::NotORAM::ORAMClient::ORAMClient<_OBST::Node,true,false> >

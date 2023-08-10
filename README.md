@@ -53,7 +53,6 @@ make
 
 ## Performance graph on latest build
 
-<!-- Commented out because due to not public yet:
 ### Map
 ![map perf graph](https://git.xtrm0.com/dsf/odsl/-/jobs/artifacts/main/raw/quality/graphs/perf.png?job=graphs)
 
@@ -67,7 +66,6 @@ make
 
 ## Intrinsics performance graphs
 ![latest perf graph](https://git.xtrm0.com/dsf/odsl/-/jobs/artifacts/main/raw/quality/graphs/intrinsics.png?job=graphs)
--->
 
 ## Folder structure high level details
 

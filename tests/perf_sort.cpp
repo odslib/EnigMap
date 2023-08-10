@@ -1,9 +1,9 @@
 #include <functional>
 
 #include "external_memory/algorithm/ca_bucket_sort.hpp"
-#include "external_memory/algorithm/min_io_sort.hpp"
+#include "external_memory/algorithm/kway_butterfly_sort.hpp"
+#include "external_memory/algorithm/kway_distri_sort.hpp"
 #include "external_memory/algorithm/naive_bucket_sort.hpp"
-#include "external_memory/algorithm/sort.hpp"
 
 // #include "oram/common/block.hpp"
 #include <gtest/gtest.h>
@@ -12,17 +12,18 @@
 
 #include "testutils.hpp"
 
-#define test_sort(n, f, ...)       \
-  _test_sort<Vector<SortElement>>( \
+#define PAGE_SIZE 4096
+
+#define test_sort(n, f, ...)                  \
+  _test_sort<Vector<SortElement, PAGE_SIZE>>( \
       n, #f, [](auto&& arr) { f(arr); } __VA_OPT__(, ) __VA_ARGS__)
 #define test_sort_cache(n, f, Vec, ...)                  \
-  _test_sort<Vec<SortElement, 65472, true, true, 1024>>( \
+  _test_sort<Vec<SortElement, 16320, true, true, 1024>>( \
       n, #f, [](auto&& arr) { f(arr); } __VA_OPT__(, ) __VA_ARGS__)
 #define ENABLE_PROFILING
 
 using namespace EM::Algorithm;
 using namespace EM::NonCachedVector;
-using namespace EM::MemServer;
 using namespace std;
 
 void printProfile(uint64_t N, ostream& ofs, auto& diff) {
@@ -32,60 +33,25 @@ void printProfile(uint64_t N, ostream& ofs, auto& diff) {
   ofs << "time (s): " << setw(9) << diff.count() << std::endl;
 }
 
-TEST(TestSort, TestSortPerfCount) {
-  RELEASE_ONLY_TEST();
-  printf("ecall_sort_perf called\n");
-  dbg_printf("run in debug mode\n");
-  for (double factor = 1; factor <= 800; factor *= 1.2) {
-    uint64_t size = (uint64_t)(factor * (1UL << 19));
-    if (EM::Backend::g_DefaultBackend) {
-      delete EM::Backend::g_DefaultBackend;
-    }
-    EM::Backend::g_DefaultBackend =
-        new EM::Backend::MemServerBackend((uint64_t)((1UL << 10) * size));
-    Vector<SortElement> vExt(size);
-    Vector<SortElement>::Writer writer(vExt.begin(), vExt.end());
-    for (uint64_t i = 0; i < size; ++i) {
-      SortElement element = SortElement();
-      element.key = UniformRandom();
-      writer.write(element);
-    }
-    writer.flush();
-    PERFCTR_RESET();
-    auto start = std::chrono::system_clock::now();
-    // BucketObliviousSort(vExt.begin(), vExt.end());
-    minIOSort(vExt.begin(), vExt.end());
-    // BitonicSort(vExt.begin(), vExt.end());
-    auto end = std::chrono::system_clock::now();
-    std::chrono::duration<double> diff = end - start;
-    printf("%ld\t%f\t%ld\t%ld\t%ld\n", size, diff.count(),
-           g_PerfCounters.swapCount, g_PerfCounters.readCount,
-           g_PerfCounters.writeCount);
-  }
-}
-
 template <typename Vec, typename F>
 void _test_sort(size_t size, string funcname, F&& sortFunc,
                 bool isPermutation = false) {
   delete EM::Backend::g_DefaultBackend;
   EM::Backend::g_DefaultBackend =
-      new EM::Backend::MemServerBackend((1ULL << 10) * size);
+      new EM::Backend::MemServerBackend((1ULL << 10) * (size + 1024));
   srand(time(NULL));
   const uint64_t N = size;
   cout << "test " << funcname << " perf on input size " << N << endl;
   SortElement defaultval;
   vector<SortElement> v(N, defaultval);
   unordered_map<uint64_t, int> value_count;
-  uint64_t B = 4096 / 128;
-  for (uint64_t i = 0; i < N; i += B) {
-    // uint64_t rd =
-    for (uint64_t j = i; j < i + B; ++j) {
-      v[j].key = UniformRandom();
-      ++value_count[v[j].key];
-    }
+  for (uint64_t i = 0; i < N; i++) {
+    v[i].key = UniformRandom();
+    memset(v[i].payload, (char)v[i].key, sizeof(SortElement::payload));
+    ++value_count[v[i].key];
   }
   Vec vExt(N);
-  if constexpr (std::is_same<Vec, Vector<SortElement>>::value) {
+  if constexpr (std::is_same<Vec, Vector<SortElement, PAGE_SIZE>>::value) {
     CopyOut(v.begin(), v.end(), vExt.begin());
   } else {
     std::copy(v.begin(), v.end(), vExt.begin());
@@ -102,7 +68,7 @@ void _test_sort(size_t size, string funcname, F&& sortFunc,
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> diff = end - start;
   printProfile(N, cout, diff);
-  if constexpr (std::is_same<Vec, Vector<SortElement>>::value) {
+  if constexpr (std::is_same<Vec, Vector<SortElement, PAGE_SIZE>>::value) {
     CopyIn(vExt.begin(), vExt.end(), v.begin(), 1);
   } else {
     std::copy(vExt.begin(), vExt.end(), v.begin());
@@ -110,11 +76,16 @@ void _test_sort(size_t size, string funcname, F&& sortFunc,
 
   // check it's a permutation
   for (uint64_t i = 0; i < N; ++i) {
-    if (value_count[v[i].key] == 0) {
-      printf("index %ld contains duplicate key %ld\n", i, v[i].key);
+    auto key = v[i].key;
+    if (value_count[key] == 0) {
+      printf("index %ld contains duplicate key %ld\n", i, key);
       Assert(false);
     }
-    ASSERT_GE(--value_count[v[i].key], 0);
+    char keyLastByte = (char)key;
+    for (size_t j = 0; j < sizeof(SortElement::payload); ++j) {
+      ASSERT_EQ((char)v[i].payload[j], keyLastByte);
+    }
+    ASSERT_GE(--value_count[key], 0);
   }
   if (!isPermutation) {
     // check increasing order
@@ -126,42 +97,60 @@ void _test_sort(size_t size, string funcname, F&& sortFunc,
 
 TEST(TestSort, TestKWayButterflySortPerf) {
   // RELEASE_ONLY_TEST();
-  test_sort(1UL << 24, KWayButterflySort);
+  for (double N = 1; N < 10000000; N *= 1.5) {
+    test_sort((size_t)N, KWayButterflySort);
+  }
 }
 
-TEST(TestSort, TestKWayBucketObliviousPermutationPerf) {
+TEST(TestSort, TestKWayButterflyOShufflePerf) {
   // RELEASE_ONLY_TEST();
-  test_sort(1UL << 23, KWayBucketObliviousShuffle, true);
+  for (double N = 1; N < 10000000; N *= 1.5) {
+    test_sort((size_t)N, KWayButterflyOShuffle, true);
+  }
 }
 
-TEST(TestSort, TestDistriOSortPerf) {
+TEST(TestSort, TestKWayDistriSortPerf) {
   // RELEASE_ONLY_TEST();
-  test_sort(5UL << 21, DistriOSort);
+  for (double N = 1000000; N < 10000000; N *= 1.5) {
+    test_sort((size_t)N, KWayDistriSort);
+  }
+}
+
+TEST(TestSort, TestKWayDistriSortShuffledPerf) {
+  // RELEASE_ONLY_TEST();
+  for (double N = 1000000; N < 10000000; N *= 1.5) {
+    test_sort((size_t)N, KWayDistriSortShuffled);
+  }
 }
 
 TEST(TestSort, TestCacheObliviouBucketSortPerf) {
   // RELEASE_ONLY_TEST();
-  test_sort(1UL << 21, CABucketSort);
+  test_sort(200000, CABucketSort);
+}
+
+TEST(TestSort, TestExtMergeSortPerf) {
+  // RELEASE_ONLY_TEST();
+  test_sort(10000000, ExtMergeSort);
 }
 
 TEST(TestSort, TestCacheObliviouBucketPermutationPerf) {
   // RELEASE_ONLY_TEST();
-  test_sort(1UL << 21, CABucketSort, true);
+  test_sort(200000, CABucketShuffle, true);
 }
 
 TEST(TestSort, TestBitonicObliviousSortPerf) {
   // RELEASE_ONLY_TEST();
-  test_sort_cache(1UL << 21, BitonicSort, EM::ExtVector::Vector);
+  test_sort_cache(200000, BitonicSort, EM::ExtVector::Vector);
 }
 
 TEST(TestSort, TestOrShufflePerf) {
   // RELEASE_ONLY_TEST();
-  test_sort_cache(1UL << 21, OrShuffle, EM::ExtVector::Vector, true);
+  test_sort_cache(200000, OrShuffle, EM::ExtVector::Vector, true);
 }
 
 TEST(TestSort, TestBitonicShufflePerf) {
   // RELEASE_ONLY_TEST();
-  test_sort_cache(1UL << 21, BitonicShuffle, EM::ExtVector::Vector, true);
+  test_sort_cache(20000, BitonicShuffle, EM::ExtVector::Vector, true);
 }
 
 TEST(TestSort, TestSequentialPassPerf) {
@@ -231,11 +220,11 @@ TEST(TestSort, TestKWayMergeSplitPerf) {
       const uint64_t N = way * Z * (bucketCount / way);
       vector<TaggedT<SortElement>> v(N, defaultVal);
       for (int round = 0; round < bucketCount / way; ++round) {
-        vector<vector<TaggedT<SortElement>>::iterator> begins;
+        vector<TaggedT<SortElement>>::iterator begins[8];
         for (size_t i = 0; i < way; ++i) {
-          begins.push_back(v.begin() + i * Z + Z * round * way);
+          begins[i] = v.begin() + i * Z + Z * round * way;
         }
-        MergeSplitKWay(begins, Z);
+        MergeSplitKWay(begins, way, Z);
       }
 
       auto end = std::chrono::system_clock::now();

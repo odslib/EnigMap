@@ -7,8 +7,9 @@ include(cmake/faster.cmake)
 set(PROJECT_TRDPARTY_DIR "thirdparty")
 
 # gtest is currently buggy with clang and interprocess optimization, we needded to remove this flag: -Werror
+# set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O0 -DNDEBUG -g -ggdb -fno-inline -no-pie")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG ")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -fno-inline -no-pie")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -ggdb -fno-inline -no-pie")
 # This doesn't work if the machine doesn't support icelake-server march.
 # I'm removing it for now and replacing with -march=native, -mtune=native
 # UNDONE(): Make sure that on evaluation machine we validate that AVX512VL is being set.

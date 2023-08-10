@@ -1,6 +1,6 @@
 #pragma once
 #include "external_memory/extemvector.hpp"
-#include "block_for_sort.hpp"
+#include "sort_def.hpp"
 
 // UNDONE(): This file should implement the sort optimized for the external
 // memory model.
@@ -191,7 +191,7 @@ namespace EM::Algorithm::Naive {
   }
 
   template <typename T>
-  void BucketObliviousShuffle(Vector<T>& b) {
+  void BucketOShuffle(Vector<T>& b) {
     Vector<TaggedT<T> > tv = tagAndPad(b);
 
     BucketObliviousSort_Internal(tv, GetLogBaseTwo(tv.size()));
@@ -203,7 +203,7 @@ namespace EM::Algorithm::Naive {
 
   template <typename T, typename Compare>
   void BucketObliviousSort(Vector<T>& b, Compare cmp) {
-    BucketObliviousShuffle(b);
+    BucketOShuffle(b);
     std::sort(b.begin(), b.end(), cmp);
   }
 

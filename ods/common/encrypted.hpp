@@ -19,10 +19,6 @@ namespace Concepts {
   };
 }
 
-// "random" (:P) AES key:
-// UNDONE(): move key to oram_client_interface.hpp
-inline constexpr uint8_t KEY[16] = {0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x41};
-
 template<typename T>
 // requires (IS_POD<T>())
 struct Encrypted {
@@ -44,7 +40,7 @@ struct Encrypted {
     for (int round = 0; round < IO_ROUND; ++round) { // for testing portion of I/O
     GetRand16(iv);
     #ifndef NOOPENSSL
-    GetRand16(iv);
+    // GetRand16(iv);
     aes_256_gcm_encrypt(SIZE, const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(&in)), KEY, iv, tag, data);
     #else
     aes_256_ctr_encrypt(SIZE, const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(&in)), KEY, iv, data);

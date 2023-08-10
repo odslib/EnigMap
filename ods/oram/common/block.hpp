@@ -4,7 +4,6 @@
 #include "common/encrypted.hpp"
 #include "common/dummy.hpp"
 #include "oram/common/types.hpp"
-#include "oram/common/concepts.hpp"
 
 namespace _ORAM::Block {
   struct DefaultBlockData {
@@ -18,7 +17,7 @@ namespace _ORAM::Block {
 
 
   template<typename T=DefaultBlockData, bool ENCRYPT_BLOCKS=ORAM__ENCRYPT_BLOCKS>
-  requires (IS_POD<T>())
+  requires(IS_POD<T>())
   struct Block
   {
     using _T = T;

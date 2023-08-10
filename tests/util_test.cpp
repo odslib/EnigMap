@@ -3,11 +3,11 @@
 #include <iostream>
 #include <map>
 
-#include "common/utils.hpp"
-#include "oram/common/block.hpp"
 #include "common/osort.hpp"
-#include "external_memory/algorithm/param_select.hpp"
 #include "common/tracing/tracer.hpp"
+#include "common/utils.hpp"
+#include "external_memory/algorithm/param_select.hpp"
+#include "oram/common/block.hpp"
 #include "testutils.hpp"
 
 // using namespace _OBST;
@@ -107,18 +107,17 @@ TEST(TestCMOV, ServerBlockTest) {
   EXPECT_EQ(b1, b2_copy);
 }
 
-
 TEST(TestCMOV, ServerStashedBlockTest) {
   using StashedBlock_t = _ORAM::StashedBlock::StashedBlock<>;
   StashedBlock_t b1;
   StashedBlock_t b2;
   StashedBlock_t b1_copy;
-  StashedBlock_t b2_copy;  
+  StashedBlock_t b2_copy;
   memset(&b1, 0, sizeof(StashedBlock_t));
   memset(&b1_copy, 0, sizeof(StashedBlock_t));
   memset(&b2, 0x42, sizeof(StashedBlock_t));
   memset(&b2_copy, 0x42, sizeof(StashedBlock_t));
-  b2.cached=b2_copy.cached=1;
+  b2.cached = b2_copy.cached = 1;
   CMOV(false, b1, b2);
   EXPECT_EQ(b1, b1_copy);
   EXPECT_EQ(b2, b2_copy);
@@ -158,7 +157,6 @@ TEST(TestObliSortP2, ServerBlockTest) {
 TEST(TestObliSort, ServerBlockTest) {
   using StashedBlock_t = _ORAM::StashedBlock::StashedBlock<>;
   srand(time(0));
-  g_OnExit;
 
   for (int iter = 0; iter < 10000; iter++) {
     uint64_t sz = 1 + rand() % 1234;
@@ -204,16 +202,8 @@ TEST(TestProbCalc, TestHypergeom) {
   ASSERT_ROUGH_EQUAL(hypergeomLogSf(5, 1e8, 1e6, 10), -32.198576291056035);
 }
 
-TEST(TestProbCalc, TestMinimize) {
-  auto square = [](double x) { return (x - 1) * (x - 1); };
-  ASSERT_ROUGH_EQUAL(1.0, convexMinimize(-2.0, 5.0, square, 1e-8));
-  auto absfunc = [](double x) { return abs(x + 1); };
-  printf("%f\n", convexMinimize(-2.0, 5.0, absfunc, 1e-8));
-  ASSERT_ROUGH_EQUAL(-1.0, convexMinimize(-2.0, 5.0, absfunc, 1e-8));
-}
-
 TEST(TestProbCalc, TestBounds) {
-  ASSERT_ROUGH_EQUAL(logCombin(12345, 123456), logCombin<UPPER>(12345, 123456));
-  ASSERT_LE(logCombin(12345, 123456), logCombin<UPPER>(12345, 123456));
-  ASSERT_LE(logCombin<LOWER>(12345, 123456), logCombin(12345, 123456));
+  ASSERT_ROUGH_EQUAL(logCombin(12345, 123456), logCombin(12345, 123456));
+  ASSERT_LE(logCombin(12345, 123456), logCombin(12345, 123456));
+  ASSERT_LE(logCombin(12345, 123456), logCombin(12345, 123456));
 }

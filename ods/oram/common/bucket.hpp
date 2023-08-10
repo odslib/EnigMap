@@ -6,7 +6,6 @@
 #include "common/defs.hpp"
 #include "common/encrypted.hpp"
 #include "oram/common/block.hpp"
-#include "oram/common/concepts.hpp"
 
 namespace _ORAM::Bucket {
 // These DefaultXMetadata are just examples.
@@ -57,7 +56,7 @@ struct DefaultBucketMetadata : MixedEncryptable<DefaultPublicMetadata<>, Default
 
   static INLINE CLANG_OR_GCC(constexpr, consteval) DefaultBucketMetadata DUMMY() {
     DefaultBucketMetadata ret;
-    for (int i=0; i<Z-1; i++) {
+    for (int i=0; i<Z; i++) {
       ret.priv.addresses[i] = ORAMAddress::DUMMY();
     }
     return ret;
@@ -90,27 +89,26 @@ struct Bucket {
   BucketMetadata_t md;
   Block_t blocks[BUCKET_SIZE];
 
+  static INLINE CLANG_OR_GCC(constexpr, consteval) Bucket DUMMY() {
+    Bucket ret;
+    ret.md = BucketMetadata_t::DUMMY();
+    for (int i=0; i<Z; i++) {
+      ret.blocks[i] = Block_t::DUMMY();
+    }
+    return ret;
+  }
+
+  // overload ostream
   #ifndef ENCLAVE_MODE
   friend std::ostream &operator<<(std::ostream &o, const Bucket &x)
   {
-    if (x.md.pub.invalidated) {
-      o << "{INV}";
-      return o;
-    }
-    o << "{" << x.md.pub.counter << "," << std::endl;
+    o << "{" << std::endl;
+    o << " md: " << x.md << std::endl;
     for (int i=0; i<BUCKET_SIZE; i++) {
-      if (x.md.priv.addresses[i] == ORAMAddress::DUMMY()) {
+      if (x.blocks[i] == Block::DUMMY()) {
         continue;
       }
-      if (x.md.pub.valid[i]) {
-        o << "   ";
-      } else {
-        o << " X ";
-      }
-      o << i << ": " << x.md.priv.addresses[i];
-      o << x.blocks[i];
-
-      o << std::endl;
+      o << i << ": " << x.blocks[i] << std::endl;
     }
     o << "}";
     return o;
@@ -145,6 +143,15 @@ namespace _ORAM::LargeBucket {
     }
 
     Bucket buckets[BUCKETS_PER_PACK];
+
+    static INLINE CLANG_OR_GCC(constexpr, consteval) LargeBucket DUMMY() {
+      LargeBucket ret;
+      for (int i=0; i<BUCKETS_PER_PACK; i++) {
+        ret.buckets[i] = Bucket::DUMMY();
+      }
+      return ret;
+    }
+
     using Encrypted_t = std::conditional_t<ENCRYPT_LARGE_BUCKETS, Encrypted<LargeBucket>, NonEncrypted<LargeBucket>>;
   }; // struct LargeBucket
   

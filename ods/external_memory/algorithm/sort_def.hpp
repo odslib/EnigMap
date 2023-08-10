@@ -3,13 +3,43 @@
 #include "common/dummy.hpp"
 #include "common/encrypted.hpp"
 #include "common/mov_intrinsics.hpp"
-#include "oram/common/concepts.hpp"
 #include "oram/common/types.hpp"
+
+// size of each element in bytes
 #ifndef ELEMENT_SIZE
 #define ELEMENT_SIZE 128
 #endif
 
 namespace EM::Algorithm {
+enum SortMethod {
+  CABUCKETSORT,                   // cache agnostic bucket sort
+  BITONICSORT,                    // bitonic sort
+  ORSHUFFLE,                      // ORShuffle
+  CABUCKETSHUFFLE,                // cache agnostic bucket shuffle
+  BITONICSHUFFLE,                 // bitonic shuffle
+  KWAYDISTRIBUTIONOSORT,          // flex-way distribution o-sort
+  KWAYDISTRIBUTIONOSORTSHUFFLED,  // flex-way distribution o-sort when input
+                                  // is preshuffled
+  KWAYBUTTERFLYOSORT,             // flex-way butterfly o-sort
+  KWAYBUTTERFLYOSHUFFLE,          // flex-way butterfly o-shuffle
+  UNOPTBITONICSORT,               // unoptimized bitonic sort
+  EXTMERGESORT,                   // external memory merge sort
+  OTHER                           // other algorithms
+};
+
+enum PartitionMethod {
+  INTERLEAVE_PARTITION,  // partition by interleaving
+  OR_COMPACT,            // partition by OR compact
+  GOODRICH_COMPACT,      // partition using goodrich's method (not the external
+                         // memory version)
+  BITONIC                // partition using bitonic sort
+};
+
+/// @brief conditionally swap two values
+/// @tparam perf if true, increment swap counter
+/// @param cond condition for swapping
+/// @param v1 first value
+/// @param v2 second value
 template <bool perf = true>
 INLINE void condSwap(const auto& cond, auto& v1, auto& v2) {
   if constexpr (perf) {
@@ -17,66 +47,66 @@ INLINE void condSwap(const auto& cond, auto& v1, auto& v2) {
   }
 
   obliSwap(cond, v1, v2);
-  // CXCHG(cond, v1, v2);
 }
 
+/// @brief swap two values
+template <bool perf = true>
 INLINE void swap(auto& v1, auto& v2) {
-  // PERFCTR_INCREMENT(swapCount);
+  if constexpr (perf) {
+    PERFCTR_INCREMENT(swapCount);
+  }
   std::swap(v1, v2);
 }
-// enum DummyFlag { NOT_DUMMY, DUMMY_DEFAULT, DUMMY_LESS, DUMMY_GE };
-struct DefaultBlockData {
-  uint64_t v;
 
-  static consteval inline DefaultBlockData DUMMY() {
-    return DefaultBlockData{static_cast<uint64_t>(-1)};
+/// @brief check if a vector is sorted
+template <template <typename> class Vector2, typename T, typename Compare>
+bool IsSorted(Vector2<T>& v, Compare cmp) {
+  bool ret = true;
+  for (uint64_t i = 1; i < v.size(); i++) {
+    ret = ret * (cmp(v[i - 1], v[i]) + (!cmp(v[i], v[i - 1])));
   }
-  bool operator==(const DefaultBlockData& other) const = default;
-  bool operator<(const DefaultBlockData& other) const { return v < other.v; }
-#ifndef ENCLAVE_MODE
-  friend std::ostream& operator<<(std::ostream& o, const DefaultBlockData& x) {
-    o << x.v;
-    return o;
-  }
-#endif
-};
-using DefaultData_t = DefaultBlockData;
+  return ret;
+}
 
-template <typename T = DefaultData_t,
-          bool ENCRYPT_BLOCKS = ORAM__ENCRYPT_BLOCKS>
+/// @brief Wrapper for flex-way distribution o-sort
+/// @tparam T type of elements
+template <typename T>
   requires(IS_POD<T>())
 struct Block {
-  using _T = T;
+#if defined(__AVX512VL__) || defined(__AVX2__)
   static constexpr size_t paddingSize = sizeof(T) % 32 == 16 ? 8 : 0;
+#else
+  static constexpr size_t paddingSize = 0;
+#endif
   T data;
-  uint32_t tag;  // tie breaker
-  bool dummyFlag;
-  bool lessFlag;
-  char padding[paddingSize];
+  uint32_t tag;               // tie breaker
+  bool dummyFlag;             // a flag to mark if the element is dummy
+  bool lessFlag;              // a flag to mark if the comparison result is less
+  char padding[paddingSize];  // additional padding to make the swap faster
   auto operator==(const Block& other) const { return data == other.data; }
   bool operator<(const Block& other) const {
     return (data < other.data) | ((data == other.data) & (tag < other.tag));
   }
-#ifndef ENCLAVE_MODE
-  friend std::ostream& operator<<(std::ostream& o, const Block& x) {
-    o << "(" << x.data << ")";
-    return o;
-  }
-#endif
   inline void setData(const T& _data) {
-    this->data = _data;
-    this->tag = UniformRandom32();
-    this->dummyFlag = false;
+    data = _data;
+    tag = UniformRandom32();
+    dummyFlag = false;
   }
 
-  inline const T& getData() { return data; }
+  inline void setData(const T& _data, uint32_t i) {
+    data = _data;
+    tag = i;
+    dummyFlag = false;
+  }
+
+  inline const T& getData() const { return data; }
 
   static consteval inline Block DUMMY() {
     return Block{T::DUMMY(), 0, true, false};
   }
   inline bool isDummy() const { return dummyFlag; }
   inline bool setAndGetMarked(const Block& pivot) {
-    return lessFlag = *this < pivot;
+    return lessFlag = !(pivot < *this);
   }
   inline bool isMarked(const Block& unused) const { return lessFlag; }
 
@@ -90,31 +120,29 @@ struct Block {
   inline void setDummyFlagCond(bool cond, bool flag) {
     CMOV(cond, this->dummyFlag, flag);
   }
-
-  using Encrypted_t =
-      std::conditional_t<ENCRYPT_BLOCKS, Encrypted<Block>, NonEncrypted<Block>>;
 };  // struct Block
+
+/// @brief Wrapper for flex-way butterfly o-sort
+/// @tparam T type of elements
 template <typename T>
+  requires(IS_POD<T>())
 struct TaggedT {
+#if defined(__AVX512VL__) || defined(__AVX2__)
   static constexpr size_t paddingSize = sizeof(T) % 32 == 16 ? 8 : 0;
-  uint64_t tag;
+#else
+  static constexpr size_t paddingSize = 0;
+#endif
+  uint64_t tag;  // random label except that the most significant bit is the
+                 // flag to mark if the element is dummy
   T v;
   char padding[paddingSize];
 
-  // UNDONE(): this function needs to stop being a member function and be a
-  // template function on it's own. The main reason is that T::DUMMY() for int
-  // is not callable.
-  //
-  static consteval TaggedT DUMMY() {
-    TaggedT ret;
-    ret.tag = static_cast<uint64_t>(-1);
-    ret.v = T();
-    return ret;
+  inline void setData(const T& _data) {
+    v = _data;
+    tag = UniformRandom() & 0x7fff'ffff'ffff'ffffUL;
   }
 
-  inline void setData(const T& _data) { v = _data; }
-
-  inline const T& getData() { return v; }
+  inline const T& getData() const { return v; }
 
   inline bool isDummy() const { return tag >> 63; }
 
@@ -140,14 +168,13 @@ struct TaggedT {
     return mark;
   }
 };
-
-static_assert(IS_POD<Block<DefaultData_t>>());
-static_assert(IS_POD<Block<DefaultData_t>::Encrypted_t>());
 }  // namespace EM::Algorithm
 
+/// @brief Example of a sort element
 struct SortElement {
-  uint64_t key;
-  char payload[ELEMENT_SIZE - sizeof(key)];
+  uint64_t key;  // key for comparison
+  char payload[ELEMENT_SIZE -
+               sizeof(key)];  // a payload that is typically longer
   static consteval inline SortElement DUMMY() {
     return SortElement{static_cast<uint64_t>(-1)};
   }
@@ -169,16 +196,9 @@ INLINE void CMOV(const uint64_t& condition, SortElement& A,
   }
 }
 
-template <>
-INLINE void CMOV<EM::Algorithm::DefaultBlockData>(
-    const uint64_t& condition, EM::Algorithm::DefaultBlockData& A,
-    const EM::Algorithm::DefaultBlockData& B) {
-  CMOV(condition, A.v, B.v);
-}
-
-template <typename T, bool W>
-INLINE void CMOV(const uint64_t& condition, EM::Algorithm::Block<T, W>& A,
-                 const EM::Algorithm::Block<T, W>& B) {
+template <typename T>
+INLINE void CMOV(const uint64_t& condition, EM::Algorithm::Block<T>& A,
+                 const EM::Algorithm::Block<T>& B) {
   CMOV(condition, A.data, B.data);
   CMOV(condition, A.tag, B.tag);
   CMOV(condition, A.dummyFlag, B.dummyFlag);
@@ -194,5 +214,5 @@ INLINE void CMOV(const uint64_t& condition, EM::Algorithm::TaggedT<T>& A,
 
 // UNDONE(): figure out how to not have to overload CXCHG and TSET here:
 
-OVERLOAD_TSET_CXCHG(EM::Algorithm::Block<T COMMA W>, typename T, bool W)
+OVERLOAD_TSET_CXCHG(EM::Algorithm::Block<T>, typename T)
 OVERLOAD_TSET_CXCHG(EM::Algorithm::TaggedT<T>, typename T);

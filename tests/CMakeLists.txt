@@ -25,7 +25,7 @@ add_executable(
   test.cpp
   oram.cpp
   otree.cpp
-  # recursive.cpp
+  recursive.cpp
 )
 target_compile_definitions(test1 PRIVATE BOOST_STACKTRACE_USE_ADDR2LINE)
 target_link_libraries(
@@ -40,6 +40,7 @@ target_link_libraries(
 
 add_executable(
   test_algo
+  algorithms.cpp
   sort.cpp
 )
 target_compile_definitions(test_algo PRIVATE BOOST_STACKTRACE_USE_ADDR2LINE)

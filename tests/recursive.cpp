@@ -167,7 +167,7 @@ TYPED_TEST_P(TestRecursiveORAM, BasicAssertionRepetitive) {
 // }
 
 
-#define BASE (1<<10)
+#define BASE (1<<6)
 typedef ::testing::Types<
     TestParameter<
           _ORAM::NotORAM::ORAMClient::ORAMClient<uint64_t,false,false>
@@ -232,28 +232,28 @@ typedef ::testing::Types<
       , BASE+2>
 
   , TestParameter<
-        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>
-      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,false,4>
+        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>
+      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,4>
       , 10>
   , TestParameter<
-        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>
-      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,false,4>
+        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>
+      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,4>
       , BASE-2>
   , TestParameter<
-        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>
-      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,false,4>
+        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>
+      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,4>
       , BASE-1>
   , TestParameter<
-        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>
-      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,false,4>
+        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>
+      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,4>
       , BASE>
   , TestParameter<
-        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>
-      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,false,4>
+        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>
+      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,4>
       , BASE+1>
   , TestParameter<
-        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,false,4>
-      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,false,4>
+        _ORAM::PathORAM::ORAMClient::ORAMClient<uint64_t,ORAM__Z,false,4>
+      , _ORAM::PathORAM::ORAMClient::ORAMClient<_ORAM::RecursiveORAM::Data,ORAM__Z,false,4>
       , BASE+2>
 > TestedTypes;
 

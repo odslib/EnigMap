@@ -3,7 +3,7 @@
 #include "oram/pathoram/oram.hpp"
 #include "otree/otree.hpp"
 
-using ORAMClient_t = typename _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,false,ORAM_SERVER__LEVELS_PER_PACK>;
+using ORAMClient_t = typename _ORAM::PathORAM::ORAMClient::ORAMClient<_OBST::Node,ORAM__Z,false,ORAM_SERVER__LEVELS_PER_PACK>;
 using OramClient_t = typename _OBST::OramClient::OramClient<ORAMClient_t>;
 using OBST_t = typename _OBST::OBST::OBST<OramClient_t>;
 

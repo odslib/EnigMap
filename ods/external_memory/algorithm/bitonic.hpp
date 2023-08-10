@@ -1,19 +1,10 @@
 #pragma once
 #include <vector>
 
-#include "block_for_sort.hpp"
 #include "external_memory/extemvector.hpp"
+#include "sort_def.hpp"
 
 namespace EM::Algorithm {
-
-template <template <typename> class Vector2, typename T, typename Compare>
-bool IsSorted(Vector2<T>& v, Compare cmp) {
-  bool ret = true;
-  for (uint64_t i = 1; i < v.size(); i++) {
-    ret = ret * (cmp(v[i - 1], v[i]) + (!cmp(v[i], v[i - 1])));
-  }
-  return ret;
-}
 
 template <class Iterator, typename Compare>
 void SlowBitonicSort(Iterator begin, Iterator end, Compare cmp) {
@@ -118,9 +109,12 @@ void BitonicShuffle(Iterator begin, Iterator end) {
       *it = taggedIt->v;
     }
   } else {
-    constexpr size_t CachePageSize = 65536;
-    constexpr size_t CacheSize = (uint64_t)(ENCLAVE_SIZE << 19) / CachePageSize;
-    EM::ExtVector::Vector<TaggedT<T>, CachePageSize - 32, true, true, CacheSize>
+    using IOVector = typename
+        std::remove_reference<decltype(*(Iterator::getNullVector()))>::type;
+    constexpr size_t CachePageSize =
+        IOVector::item_per_page * sizeof(TaggedT<T>);
+    constexpr size_t CacheSize = DEFAULT_HEAP_SIZE / CachePageSize - 1;
+    EM::ExtVector::Vector<TaggedT<T>, CachePageSize, true, true, CacheSize>
         taggedData(end - begin);
     size_t idx = 0;
     for (auto it = begin; it != end; ++it, ++idx) {

@@ -2,7 +2,6 @@
 #include "oram/common/types.hpp"
 #include "oram/common/block.hpp"
 #include "external_memory/emvector.hpp"
-#include "external_memory/algorithm/sort.hpp"
 
 namespace _OBST {
 namespace OramClient {
@@ -169,13 +168,13 @@ struct OramClient {
     uint64_t currSize = builtstash.size();
 
 
-    // EM::Algorithm::BucketObliviousShuffle(maxStash.begin(), maxStash.end());
+    // EM::Algorithm::BucketOShuffle(maxStash.begin(), maxStash.end());
 
     for (uint64_t l=L_+1; l-->0;) {
       // Bellow it's the actuall algorithm, we are just doing K iterations of 
       // random permutations to simulate the largest overhead part of it.
       
-      // EM::Algorithm::BucketObliviousShuffle(maxStash);
+      // EM::Algorithm::BucketOShuffle(maxStash);
       // if (maxStash.N > 20) {
         // maxStash.N = GetNextPowerOfTwo(((maxStash.N/4)+1)*2);
       // }

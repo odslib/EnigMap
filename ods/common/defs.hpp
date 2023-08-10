@@ -37,7 +37,7 @@
 #define ENCLAVE_SIZE 128
 #endif
 #ifndef DEFAULT_HEAP_SIZE
-#define DEFAULT_HEAP_SIZE ((uint64_t)ENCLAVE_SIZE * 0xE0000UL)
+#define DEFAULT_HEAP_SIZE ((uint64_t)ENCLAVE_SIZE * 0xEA000UL)
 #endif
 
 // ORAM block size:

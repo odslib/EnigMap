@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include "external_memory/server/memServer.hpp"
 // In this file we define a vector that is partially in internal memory
 // and partially in external memory. The interface for this vector is similar
 // to the interface for stl's vectors and for ORAM, with the exception that

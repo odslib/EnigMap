@@ -36,6 +36,12 @@ namespace _ORAM::RecursiveORAM {
     , L_(CeilLog2(N))
     , lastORAM(N)
     {
+      // UNDONE(): Use a single ORAM?
+      //
+      // UNDONE(): fast recursive ORAM initialization
+      //
+      // Builds the intermediate ORAMs by first assigning a constant position to every node in every level and then accessing every path (so everything looks random) -> ~O(N log^2 N) initialization.
+      //
       orams.reserve(L_);
       for (uint64_t l=0; l<L_; l++) {
         orams.emplace_back(new PositionsORAM(1ULL<<l));
@@ -65,6 +71,8 @@ namespace _ORAM::RecursiveORAM {
         lastORAM.FinishAccess();
       }
 
+      // Access every path:
+      //
       for (_ORAM::Address n=0; n<N_; n++) {
         Block_t tmpBlock;
         BeginAccess(n, tmpBlock, /*markCached=*/false);
@@ -84,7 +92,7 @@ namespace _ORAM::RecursiveORAM {
 
       for (uint64_t l=0; l<L_; l++) {
         newPos = newChildPos;
-        newChildPos = UniformRandom(std::min(uint64_t{N_-1}, (uint64_t{1}<<(l+1))-1));
+        newChildPos = UniformRandom(std::min(uint64_t{N_-1}, (uint64_t{1}<<(l))-1));
 
         _ORAM::Address levelAddress = GetAddress(addr, l);
         
